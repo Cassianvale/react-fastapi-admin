@@ -1,6 +1,16 @@
 from typing import Any, Optional
+import json
+from decimal import Decimal
 
 from fastapi.responses import JSONResponse
+
+
+# 自定义JSON编码器，处理Decimal类型
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return str(obj)  # 将Decimal转换为字符串
+        return super().default(obj)
 
 
 class Success(JSONResponse):
@@ -13,7 +23,10 @@ class Success(JSONResponse):
     ):
         content = {"code": code, "msg": msg, "data": data}
         content.update(kwargs)
-        super().__init__(content=content, status_code=code)
+        
+        # 使用自定义JSON编码器处理content
+        json_content = json.loads(json.dumps(content, cls=CustomJSONEncoder))
+        super().__init__(content=json_content, status_code=code)
 
 
 class Fail(JSONResponse):
@@ -26,7 +39,10 @@ class Fail(JSONResponse):
     ):
         content = {"code": code, "msg": msg, "data": data}
         content.update(kwargs)
-        super().__init__(content=content, status_code=code)
+        
+        # 使用自定义JSON编码器处理content
+        json_content = json.loads(json.dumps(content, cls=CustomJSONEncoder))
+        super().__init__(content=json_content, status_code=code)
 
 
 class SuccessExtra(JSONResponse):
@@ -49,4 +65,7 @@ class SuccessExtra(JSONResponse):
             "page_size": page_size,
         }
         content.update(kwargs)
-        super().__init__(content=content, status_code=code)
+        
+        # 使用自定义JSON编码器处理content
+        json_content = json.loads(json.dumps(content, cls=CustomJSONEncoder))
+        super().__init__(content=json_content, status_code=code)

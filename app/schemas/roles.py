@@ -13,17 +13,24 @@ class BaseRole(BaseModel):
     apis: Optional[list] = []
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
 
 
 class RoleCreate(BaseModel):
-    name: str = Field(example="管理员")
-    desc: str = Field("", example="管理员角色")
+    name: str = Field(..., description="角色名称")
+    desc: str = Field("", description="角色描述")
+    menu_ids: Optional[list] = []
+    api_ids: Optional[list] = []
 
 
 class RoleUpdate(BaseModel):
-    id: int = Field(example=1)
-    name: str = Field(example="管理员")
-    desc: str = Field("", example="管理员角色")
+    id: int
+    name: Optional[str] = Field(None, description="角色名称")
+    desc: Optional[str] = Field(None, description="角色描述")
+    menu_ids: Optional[list] = None
+    api_ids: Optional[list] = None
 
 
 class RoleUpdateMenusApis(BaseModel):

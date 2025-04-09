@@ -1,10 +1,12 @@
 import shutil
+import asyncio
 
 from aerich import Command
 from fastapi import FastAPI
 from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from tortoise.expressions import Q
+from tortoise import Tortoise
 
 from app.api import api_router
 from app.controllers.api import api_controller
@@ -162,18 +164,47 @@ async def init_menus():
             ),
         ]
         await Menu.bulk_create(children_menu)
-        await Menu.create(
-            menu_type=MenuType.MENU,
-            name="一级菜单",
-            path="/top-menu",
-            order=2,
+        
+        # 添加商品管理菜单
+        product_menu = await Menu.create(
+            menu_type=MenuType.CATALOG,
+            name="商品管理",
+            path="/product",
+            order=3,
             parent_id=0,
-            icon="material-symbols:featured-play-list-outline",
+            icon="mdi:shopping",
             is_hidden=False,
-            component="/top-menu",
+            component="Layout",
             keepalive=False,
-            redirect="",
+            redirect="/product/category",
         )
+        
+        # 添加商品管理的子菜单
+        product_children = [
+            Menu(
+                menu_type=MenuType.MENU,
+                name="商品分类",
+                path="category",
+                order=1,
+                parent_id=product_menu.id,
+                icon="material-symbols:category",
+                is_hidden=False,
+                component="/product/category",
+                keepalive=False,
+            ),
+            Menu(
+                menu_type=MenuType.MENU,
+                name="商品列表",
+                path="products",
+                order=2,
+                parent_id=product_menu.id,
+                icon="mdi:package-variant-closed",
+                is_hidden=False,
+                component="/product/products",
+                keepalive=False,
+            ),
+        ]
+        await Menu.bulk_create(product_children)
 
 
 async def init_apis():
@@ -184,20 +215,29 @@ async def init_apis():
 
 async def init_db():
     command = Command(tortoise_config=settings.TORTOISE_ORM)
+    # 确保Tortoise已初始化
+    if not Tortoise._inited:
+        await Tortoise.init(config=settings.TORTOISE_ORM)
+    
     try:
-        await command.init_db(safe=True)
+        # 使用shield保护数据库操作
+        await asyncio.shield(command.init_db(safe=True))
+        await command.init()
+        await asyncio.shield(command.migrate())
+        await asyncio.shield(command.upgrade(run_in_transaction=True))
     except FileExistsError:
+        # 忽略已存在的migrations目录
         pass
-
-    await command.init()
-    try:
-        await command.migrate()
     except AttributeError:
-        logger.warning("unable to retrieve model history from database, model history will be created from scratch")
+        # 处理无法检索模型历史的情况
+        logger.warning("无法从数据库检索模型历史，将从头创建模型历史")
         shutil.rmtree("migrations")
-        await command.init_db(safe=True)
-
-    await command.upgrade(run_in_transaction=True)
+        await asyncio.shield(command.init_db(safe=True))
+        await command.init()
+        await asyncio.shield(command.upgrade(run_in_transaction=True))
+    except Exception as e:
+        # 记录其他异常但不中断应用启动
+        logger.error(f"数据库初始化过程出错: {str(e)}")
 
 
 async def init_roles():
@@ -226,6 +266,7 @@ async def init_roles():
 
 
 async def init_data():
+    """初始化应用数据"""
     await init_db()
     await init_superuser()
     await init_menus()

@@ -14,12 +14,15 @@ class BaseUser(BaseModel):
     updated_at: Optional[datetime]
     last_login: Optional[datetime]
     roles: Optional[list] = []
+    
+    class Config:
+        from_attributes = True
 
 
 class UserCreate(BaseModel):
-    email: EmailStr = Field(example="admin@qq.com")
-    username: str = Field(example="admin")
-    password: str = Field(example="123456")
+    email: EmailStr = Field(example="admin@qq.com", description="邮箱")
+    username: str = Field(example="admin", description="用户名")
+    password: str = Field(example="123456", description="密码")
     is_active: Optional[bool] = True
     is_superuser: Optional[bool] = False
     role_ids: Optional[List[int]] = []
@@ -31,10 +34,26 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     id: int
-    email: EmailStr
+    username: Optional[str] = Field(None, description="用户名")
+    email: Optional[EmailStr] = Field(None, description="邮箱")
+    password: Optional[str] = Field(None, description="密码")
+    is_active: Optional[bool] = Field(None, description="是否激活")
+    is_superuser: Optional[bool] = Field(None, description="是否是超级管理员")
+    role_ids: Optional[List[int]] = Field(None, description="角色ids")
+    dept_id: Optional[int] = Field(None, description="部门ID")
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenPayload(BaseModel):
+    id: int
     username: str
+    email: str
     is_active: Optional[bool] = True
-    is_superuser: Optional[bool] = False
+    is_superuser: bool
     role_ids: Optional[List[int]] = []
     dept_id: Optional[int] = 0
 

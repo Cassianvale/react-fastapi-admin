@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Optional
+from typing import Optional, Union, List
 
 from pydantic import BaseModel, Field
 
@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 class MenuType(StrEnum):
     CATALOG = "catalog"  # 目录
     MENU = "menu"  # 菜单
+    BUTTON = "button"  # 按钮
 
 
 class BaseMenu(BaseModel):
@@ -23,6 +24,9 @@ class BaseMenu(BaseModel):
     keepalive: bool
     redirect: Optional[str]
     children: Optional[list["BaseMenu"]]
+    
+    class Config:
+        from_attributes = True
 
 
 class MenuCreate(BaseModel):

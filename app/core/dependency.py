@@ -1,7 +1,7 @@
 from typing import Optional
 
 import jwt
-from fastapi import Depends, Header, HTTPException, Request
+from fastapi import Depends, Header, HTTPException, Request, Query
 
 from app.core.ctx import CTX_USER_ID
 from app.models import Role, User
@@ -47,6 +47,16 @@ class PermissionControl:
         # method = "GET"
         if (method, path) not in permission_apis:
             raise HTTPException(status_code=403, detail=f"Permission denied method:{method} path:{path}")
+
+
+async def get_page_params(
+    page: int = Query(1, description="页码"),
+    page_size: int = Query(10, description="每页数量"),
+):
+    """
+    页码参数依赖，用于分页查询
+    """
+    return {"page": page, "page_size": page_size}
 
 
 DependAuth = Depends(AuthControl.is_authed)

@@ -39,4 +39,17 @@ export default {
   deleteDept: (params = {}) => request.delete('/dept/delete', { params }),
   // auditlog
   getAuditLogList: (params = {}) => request.get('/auditlog/list', { params }),
+  // 商品分类
+  getCategoryList: (params = {}) => request.get('/product/categories', { params }),
+  getCategoryById: (id) => request.get(`/product/categories/${id}`),
+  createCategory: (data = {}) => request.post('/product/categories', data),
+  updateCategory: (id, data = {}) => request.put(`/product/categories/${id}`, data),
+  deleteCategory: (id) => request.delete(`/product/categories/${id}`),
+  // 商品
+  getProductList: (params = {}) => request.get('/product/products', { params }),
+  getProductById: (id) => request.get(`/product/products/${id}`),
+  createProduct: (data = {}) => request.post('/product/products', data),
+  updateProduct: (id, data = {}) => request.put(`/product/products/${id}`, data),
+  deleteProduct: (id) => request.delete(`/product/products/${id}`),
+  updateProductStatus: (id, status) => request.put(`/product/products/${id}/status`, { status }),
 }

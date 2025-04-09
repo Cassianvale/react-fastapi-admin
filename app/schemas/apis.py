@@ -8,9 +8,13 @@ class BaseApi(BaseModel):
     summary: str = Field("", description="API简介", example="查看用户列表")
     method: MethodType = Field(..., description="API方法", example="GET")
     tags: str = Field(..., description="API标签", example="User")
+    
+    class Config:
+        from_attributes = True
 
 
-class ApiCreate(BaseApi): ...
+class ApiCreate(BaseApi):
+    pass
 
 
 class ApiUpdate(BaseApi):

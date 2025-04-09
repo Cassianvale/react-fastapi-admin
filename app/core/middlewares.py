@@ -56,22 +56,44 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
 
     async def get_request_args(self, request: Request) -> dict:
         args = {}
-        # 获取查询参数
-        for key, value in request.query_params.items():
-            args[key] = value
 
-        # 获取请求体
-        if request.method in ["POST", "PUT", "PATCH"]:
-            try:
-                body = await request.json()
-                args.update(body)
-            except json.JSONDecodeError:
+        try:
+            # 获取查询参数
+            for key, value in request.query_params.items():
+                args[key] = value
+
+            # 获取请求体
+            if request.method in ["POST", "PUT", "PATCH"]:
                 try:
-                    body = await request.form()
-                    args.update(body)
-                except Exception:
-                    pass
-
+                    # 尝试读取JSON请求体，最大尝试读取10KB以防止大型请求体导致问题
+                    body_bytes = await request.body()
+                    if body_bytes:
+                        # 确保内容是有效的JSON
+                        content_type = request.headers.get("content-type", "")
+                        if "application/json" in content_type.lower():
+                            try:
+                                # 使用更安全的解析方式
+                                body_str = body_bytes.decode("utf-8", errors="replace")
+                                body = json.loads(body_str)
+                                args.update(body)
+                            except json.JSONDecodeError:
+                                # JSON解析失败，尝试记录原始内容（限制大小）
+                                args["raw_body"] = body_bytes.decode("utf-8", errors="replace")[:1000]
+                        else:
+                            # 不是JSON请求，尝试表单数据
+                            try:
+                                body = await request.form()
+                                args.update({k: v for k, v in body.items()})
+                            except Exception:
+                                # 如果不是表单，存储原始内容（限制大小）
+                                args["raw_body"] = body_bytes.decode("utf-8", errors="replace")[:1000]
+                except Exception as e:
+                    # 捕获所有异常，确保中间件不会崩溃
+                    args["parse_error"] = str(e)[:200]
+        except Exception as e:
+            # 防止任何异常导致中间件崩溃
+            args["middleware_error"] = str(e)[:200]
+            
         return args
 
     async def get_response_body(self, request: Request, response: Response) -> Any:
@@ -80,39 +102,58 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
         if content_length and int(content_length) > self.max_body_size:
             return {"code": 0, "msg": "Response too large to log", "data": None}
 
-        if hasattr(response, "body"):
-            body = response.body
-        else:
-            body_chunks = []
-            async for chunk in response.body_iterator:
-                if not isinstance(chunk, bytes):
-                    chunk = chunk.encode(response.charset)
-                body_chunks.append(chunk)
+        try:
+            if hasattr(response, "body"):
+                body = response.body
+            else:
+                body_chunks = []
+                async for chunk in response.body_iterator:
+                    if not isinstance(chunk, bytes):
+                        chunk = chunk.encode(response.charset)
+                    body_chunks.append(chunk)
 
-            response.body_iterator = self._async_iter(body_chunks)
-            body = b"".join(body_chunks)
+                response.body_iterator = self._async_iter(body_chunks)
+                body = b"".join(body_chunks)
 
-        if any(request.url.path.startswith(path) for path in self.audit_log_paths):
-            try:
-                data = self.lenient_json(body)
-                # 只保留基本信息，去除详细的响应内容
-                if isinstance(data, dict):
-                    data.pop("response_body", None)
-                    if "data" in data and isinstance(data["data"], list):
-                        for item in data["data"]:
-                            item.pop("response_body", None)
-                return data
-            except Exception:
-                return None
+            # 检查是否是审计日志路径，进行特殊处理
+            if any(request.url.path.startswith(path) for path in self.audit_log_paths):
+                try:
+                    data = self.lenient_json(body)
+                    # 只保留基本信息，去除详细的响应内容
+                    if isinstance(data, dict):
+                        data.pop("response_body", None)
+                        if "data" in data and isinstance(data["data"], list):
+                            for item in data["data"]:
+                                item.pop("response_body", None)
+                    return data
+                except Exception:
+                    return {"code": 0, "msg": "Failed to parse audit log response", "data": None}
 
-        return self.lenient_json(body)
+            return self.lenient_json(body)
+        except Exception as e:
+            # 捕获所有异常，确保中间件不会崩溃
+            return {"code": 0, "msg": f"Response parsing error: {str(e)[:200]}", "data": None}
 
     def lenient_json(self, v: Any) -> Any:
-        if isinstance(v, (str, bytes)):
+        if v is None:
+            return {}
+            
+        if isinstance(v, bytes):
+            try:
+                v = v.decode("utf-8", errors="replace")
+            except Exception:
+                return {"raw_content": "Binary content"}
+                
+        if isinstance(v, str):
+            if not v or v.isspace():
+                return {}
+                
             try:
                 return json.loads(v)
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError, json.JSONDecodeError):
+                # 返回截断的原始内容，避免存储过大的非JSON数据
+                return {"raw_content": str(v)[:100] + ("..." if len(str(v)) > 100 else "")}
+                
         return v
 
     async def _async_iter(self, items: list[bytes]) -> AsyncGenerator[bytes, None]:
@@ -159,8 +200,17 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
             data: dict = await self.get_request_log(request=request, response=response)
             data["response_time"] = process_time
 
-            data["request_args"] = request.state.request_args
-            data["response_body"] = await self.get_response_body(request, response)
+            # 确保 request_args 和 response_body 是有效的 JSON 值
+            request_args = getattr(request.state, "request_args", {})
+            if request_args == "":
+                request_args = {}
+            data["request_args"] = request_args
+            
+            response_body = await self.get_response_body(request, response)
+            if response_body == "":
+                response_body = {}
+            data["response_body"] = response_body
+            
             await AuditLog.create(**data)
 
         return response
