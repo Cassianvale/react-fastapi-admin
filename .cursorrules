@@ -131,3 +131,66 @@ Adjust analysis depth based on:
 - Keep open learning attitude and updated knowledge
 - Disable the output of emoji unless specifically requested
 - By default, all responses must be in Chinese.
+
+## Directory Structure Explanation
+
+```
+├── app                   // Application directory
+│   ├── api               // API interface directory
+│   │   └── v1            // Version 1 of the API interfaces
+│   │       ├── apis      // API-related interfaces
+│   │       ├── base      // Base information interfaces
+│   │       ├── menus     // Menu related interfaces
+│   │       ├── roles     // Role related interfaces
+│   │       └── users     // User related interfaces
+│   ├── controllers       // Controllers directory
+│   ├── core              // Core functionality module
+│   ├── log               // Log directory
+│   ├── models            // Data models directory
+│   ├── schemas           // Data schema/structure definitions
+│   ├── settings          // Configuration settings directory
+│   └── utils             // Utilities directory
+├── deploy                // Deployment related directory
+│   └── sample-picture    // Sample picture directory
+└── web                   // Front-end web directory
+    ├── build             // Build scripts and configuration directory
+    │   ├── config        // Build configurations
+    │   ├── plugin        // Build plugins
+    │   └── script        // Build scripts
+    ├── public            // Public resources directory
+    │   └── resource      // Public resource files
+    ├── settings          // Front-end project settings
+    └── src               // Source code directory
+        ├── api           // API interface definitions
+        ├── assets        // Static resources directory
+        │   ├── images    // Image resources
+        │   ├── js        // JavaScript files
+        │   └── svg       // SVG vector files
+        ├── components    // Components directory
+        │   ├── common    // Common components
+        │   ├── icon      // Icon components
+        │   ├── page      // Page components
+        │   ├── query-bar // Query bar components
+        │   └── table     // Table components
+        ├── composables   // Composable functionalities
+        ├── directives    // Directives directory
+        ├── layout        // Layout directory
+        │   └── components // Layout components
+        ├── router        // Routing directory
+        │   ├── guard     // Route guards
+        │   └── routes    // Route definitions
+        ├── store         // State management (pinia)
+        │   └── modules   // State modules
+        ├── styles        // Style files directory
+        ├── utils         // Utilities directory
+        │   ├── auth      // Authentication related utilities
+        │   ├── common    // Common utilities
+        │   ├── http      // Encapsulated axios
+        │   └── storage   // Encapsulated localStorage and sessionStorage
+        └── views         // Views/Pages directory
+            ├── error-page // Error pages
+            ├── login      // Login page
+            ├── profile    // Profile page
+            ├── system     // System management page
+            └── workbench  // Workbench page
+```
