@@ -1,6 +1,6 @@
 <script setup>
 import { h, onMounted, ref, resolveDirective, withDirectives } from 'vue'
-import { NButton, NForm, NFormItem, NInput, NPopconfirm } from 'naive-ui'
+import { NButton, NForm, NFormItem, NInput, NPopconfirm, NSelect } from 'naive-ui'
 
 import CommonPage from '@/components/page/CommonPage.vue'
 import QueryBarItem from '@/components/query-bar/QueryBarItem.vue'
@@ -19,6 +19,15 @@ const $table = ref(null)
 const queryItems = ref({})
 const vPermission = resolveDirective('permission')
 
+// HTTP方法选项
+const methodOptions = [
+  { label: 'GET', value: 'GET' },
+  { label: 'POST', value: 'POST' },
+  { label: 'PUT', value: 'PUT' },
+  { label: 'DELETE', value: 'DELETE' },
+  { label: 'PATCH', value: 'PATCH' },
+]
+
 const {
   modalVisible,
   modalTitle,
@@ -31,10 +40,12 @@ const {
   handleAdd,
 } = useCRUD({
   name: 'API',
-  initForm: {},
-  doCreate: api.createApi,
-  doUpdate: api.updateApi,
-  doDelete: api.deleteApi,
+  initForm: {
+    method: 'GET' // 默认选择GET方法
+  },
+  doCreate: api.apis.create,
+  doUpdate: api.apis.update,
+  doDelete: api.apis.delete,
   refresh: () => $table.value?.handleSearch(),
 })
 
@@ -48,7 +59,7 @@ async function handleRefreshApi() {
     type: 'warning',
     content: '此操作会根据后端 app.routes 进行路由更新，确定继续刷新 API 操作？',
     async confirm() {
-      await api.refreshApi()
+      await api.apis.refresh()
       $message.success('刷新完成')
       $table.value?.handleSearch()
     },
@@ -66,9 +77,16 @@ const addAPIRules = {
   method: [
     {
       required: true,
-      message: '请输入请求方式',
-      trigger: ['input', 'blur', 'change'],
+      message: '请选择请求方式',
+      trigger: ['blur', 'change'],
     },
+    {
+      validator: (rule, value) => {
+        const validMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+        return validMethods.includes(value) ? true : new Error('请求方式无效');
+      },
+      trigger: ['blur', 'change']
+    }
   ],
   summary: [
     {
@@ -202,7 +220,7 @@ const columns = [
       ref="$table"
       v-model:query-items="queryItems"
       :columns="columns"
-      :get-data="api.getApis"
+      :get-data="api.apis.getList"
     >
       <template #queryBar>
         <QueryBarItem label="路径" :label-width="40">
@@ -254,7 +272,11 @@ const columns = [
           <NInput v-model:value="modalForm.path" clearable placeholder="请输入API路径" />
         </NFormItem>
         <NFormItem label="请求方式" path="method">
-          <NInput v-model:value="modalForm.method" clearable placeholder="请输入请求方式" />
+          <NSelect 
+            v-model:value="modalForm.method" 
+            :options="methodOptions" 
+            placeholder="请选择请求方式"
+          />
         </NFormItem>
         <NFormItem label="API简介" path="summary">
           <NInput v-model:value="modalForm.summary" clearable placeholder="请输入API简介" />

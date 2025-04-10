@@ -36,7 +36,7 @@ export const useUserStore = defineStore('user', {
   actions: {
     async getUserInfo() {
       try {
-        const res = await api.getUserInfo()
+        const res = await api.auth.getUserInfo()
         if (res.code === 401) {
           this.logout()
           return

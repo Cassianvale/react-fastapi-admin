@@ -1,5 +1,6 @@
 import json
 import re
+import logging
 from datetime import datetime
 from typing import Any, AsyncGenerator
 
@@ -118,7 +119,7 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
             # 检查是否是审计日志路径，进行特殊处理
             if any(request.url.path.startswith(path) for path in self.audit_log_paths):
                 try:
-                    data = self.lenient_json(body)
+                    data = await self.lenient_json(body)
                     # 只保留基本信息，去除详细的响应内容
                     if isinstance(data, dict):
                         data.pop("response_body", None)
@@ -129,31 +130,50 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
                 except Exception:
                     return {"code": 0, "msg": "Failed to parse audit log response", "data": None}
 
-            return self.lenient_json(body)
+            return await self.lenient_json(body)
         except Exception as e:
             # 捕获所有异常，确保中间件不会崩溃
             return {"code": 0, "msg": f"Response parsing error: {str(e)[:200]}", "data": None}
 
-    def lenient_json(self, v: Any) -> Any:
+    async def lenient_json(self, v: Any) -> Any:
+        # 记录开始时间
+        start_time = datetime.now()
+        
+        # 使用 asyncio.to_thread 将同步操作转为异步
         if v is None:
+            logging.debug("lenient_json: Empty input (None)")
             return {}
             
         if isinstance(v, bytes):
             try:
                 v = v.decode("utf-8", errors="replace")
-            except Exception:
+                logging.debug(f"lenient_json: Decoded bytes, length: {len(v)}")
+            except Exception as e:
+                logging.warning(f"lenient_json: Failed to decode bytes: {str(e)[:200]}")
                 return {"raw_content": "Binary content"}
                 
         if isinstance(v, str):
             if not v or v.isspace():
+                logging.debug("lenient_json: Empty or whitespace string")
                 return {}
                 
             try:
-                return json.loads(v)
-            except (ValueError, TypeError, json.JSONDecodeError):
-                # 返回截断的原始内容，避免存储过大的非JSON数据
+                # 使用异步方式处理可能耗时的JSON解析
+                import asyncio
+                result = await asyncio.to_thread(json.loads, v)
+                end_time = datetime.now()
+                process_time = int((end_time.timestamp() - start_time.timestamp()) * 1000)
+                logging.info(f"lenient_json: JSON parsing completed in {process_time}ms, data size: {len(v)}")
+                return result
+            except (ValueError, TypeError, json.JSONDecodeError) as e:
+                end_time = datetime.now()
+                process_time = int((end_time.timestamp() - start_time.timestamp()) * 1000)
+                logging.warning(f"lenient_json: JSON parsing failed in {process_time}ms: {str(e)[:200]}")
                 return {"raw_content": str(v)[:100] + ("..." if len(str(v)) > 100 else "")}
-                
+        
+        end_time = datetime.now()
+        process_time = int((end_time.timestamp() - start_time.timestamp()) * 1000)
+        logging.debug(f"lenient_json: Non-string processing completed in {process_time}ms, type: {type(v)}")
         return v
 
     async def _async_iter(self, items: list[bytes]) -> AsyncGenerator[bytes, None]:
@@ -211,7 +231,8 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
                 response_body = {}
             data["response_body"] = response_body
             
-            await AuditLog.create(**data)
+            # 将数据库操作添加到后台任务
+            await BgTasks.add_task(AuditLog.create, **data)
 
         return response
 

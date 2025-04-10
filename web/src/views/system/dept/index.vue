@@ -32,9 +32,9 @@ const {
 } = useCRUD({
   name: 'API',
   initForm: { order: 0 },
-  doCreate: api.createDept,
-  doUpdate: api.updateDept,
-  doDelete: api.deleteDept,
+  doCreate: api.departments.create,
+  doUpdate: api.departments.update,
+  doDelete: api.departments.delete,
   refresh: () => $table.value?.handleSearch(),
 })
 
@@ -43,7 +43,7 @@ const isDisabled = ref(false)
 
 onMounted(() => {
   $table.value?.handleSearch()
-  api.getDepts().then((res) => (deptOption.value = res.data))
+  api.departments.getList().then((res) => (deptOption.value = res.data))
 })
 
 const deptRules = {
@@ -160,7 +160,7 @@ const columns = [
       ref="$table"
       v-model:query-items="queryItems"
       :columns="columns"
-      :get-data="api.getDepts"
+      :get-data="api.departments.getList"
     >
       <template #queryBar>
         <QueryBarItem label="部门名称" :label-width="80">

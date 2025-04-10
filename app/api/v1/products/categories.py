@@ -9,7 +9,7 @@ from app.core.dependency import get_page_params
 router = APIRouter()
 
 
-@router.post("/", response_model=None, summary="创建商品分类")
+@router.post("", response_model=None, summary="创建商品分类")
 async def create_category(category: ProductCategoryCreate):
     # 检查分类名称是否已存在
     exists = await ProductCategory.filter(name=category.name, is_deleted=False).exists()
@@ -21,7 +21,7 @@ async def create_category(category: ProductCategoryCreate):
     return Success(data=await category_obj.to_dict())
 
 
-@router.get("/", response_model=None, summary="获取商品分类列表")
+@router.get("", response_model=None, summary="获取商品分类列表")
 async def get_categories(
     name: Optional[str] = Query(None, description="分类名称"),
     page_depend: dict = Depends(get_page_params)

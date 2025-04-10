@@ -88,7 +88,7 @@ async function handleLogin() {
   try {
     loading.value = true
     $message.loading(t('views.login.message_login_success'))
-    const res = await api.login({ username, password: password.toString() })
+    const res = await api.auth.login({ username, password: password.toString() })
     $message.success(t('views.login.message_login_success'))
     setToken(res.data.access_token)
     await addDynamicRoutes()

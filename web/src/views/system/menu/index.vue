@@ -49,9 +49,9 @@ const {
 } = useCRUD({
   name: '菜单',
   initForm,
-  doCreate: api.createMenu,
-  doDelete: api.deleteMenu,
-  doUpdate: api.updateMenu,
+  doCreate: api.menus.create,
+  doDelete: api.menus.delete,
+  doUpdate: api.menus.update,
   refresh: () => $table.value?.handleSearch(),
 })
 
@@ -221,7 +221,7 @@ async function handleUpdateKeepalive(row) {
   if (!row.id) return
   row.publishing = true
   row.keepalive = row.keepalive === false ? true : false
-  await api.updateMenu(row)
+  await api.menus.update(row)
   row.publishing = false
   $message?.success(row.keepalive ? '已开启' : '已关闭')
 }
@@ -231,7 +231,7 @@ async function handleUpdateHidden(row) {
   if (!row.id) return
   row.publishing = true
   row.is_hidden = row.is_hidden === false ? true : false
-  await api.updateMenu(row)
+  await api.menus.update(row)
   row.publishing = false
   $message?.success(row.is_hidden ? '已隐藏' : '已取消隐藏')
 }
@@ -248,7 +248,7 @@ function handleClickAdd() {
 }
 
 async function getTreeSelect() {
-  const { data } = await api.getMenus()
+  const { data } = await api.menus.getList()
   const menu = { id: 0, name: '根目录', children: [] }
   menu.children = data
   menuOptions.value = [menu]
@@ -270,7 +270,7 @@ async function getTreeSelect() {
       v-model:query-items="queryItems"
       :is-pagination="false"
       :columns="columns"
-      :get-data="api.getMenus"
+      :get-data="api.menus.getList"
       :single-line="true"
     >
     </CrudTable>

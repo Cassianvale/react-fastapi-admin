@@ -1,55 +1,81 @@
 import { request } from '@/utils'
 
 export default {
-  login: (data) => request.post('/base/access_token', data, { noNeedToken: true }),
-  getUserInfo: () => request.get('/base/userinfo'),
-  getUserMenu: () => request.get('/base/usermenu'),
-  getUserApi: () => request.get('/base/userapi'),
-  // profile
-  updatePassword: (data = {}) => request.post('/base/update_password', data),
-  // users
-  getUserList: (params = {}) => request.get('/user/list', { params }),
-  getUserById: (params = {}) => request.get('/user/get', { params }),
-  createUser: (data = {}) => request.post('/user/create', data),
-  updateUser: (data = {}) => request.post('/user/update', data),
-  deleteUser: (params = {}) => request.delete(`/user/delete`, { params }),
-  resetPassword: (data = {}) => request.post(`/user/reset_password`, data),
-  // role
-  getRoleList: (params = {}) => request.get('/role/list', { params }),
-  createRole: (data = {}) => request.post('/role/create', data),
-  updateRole: (data = {}) => request.post('/role/update', data),
-  deleteRole: (params = {}) => request.delete('/role/delete', { params }),
-  updateRoleAuthorized: (data = {}) => request.post('/role/authorized', data),
-  getRoleAuthorized: (params = {}) => request.get('/role/authorized', { params }),
-  // menus
-  getMenus: (params = {}) => request.get('/menu/list', { params }),
-  createMenu: (data = {}) => request.post('/menu/create', data),
-  updateMenu: (data = {}) => request.post('/menu/update', data),
-  deleteMenu: (params = {}) => request.delete('/menu/delete', { params }),
-  // apis
-  getApis: (params = {}) => request.get('/api/list', { params }),
-  createApi: (data = {}) => request.post('/api/create', data),
-  updateApi: (data = {}) => request.post('/api/update', data),
-  deleteApi: (params = {}) => request.delete('/api/delete', { params }),
-  refreshApi: (data = {}) => request.post('/api/refresh', data),
-  // depts
-  getDepts: (params = {}) => request.get('/dept/list', { params }),
-  createDept: (data = {}) => request.post('/dept/create', data),
-  updateDept: (data = {}) => request.post('/dept/update', data),
-  deleteDept: (params = {}) => request.delete('/dept/delete', { params }),
-  // auditlog
-  getAuditLogList: (params = {}) => request.get('/auditlog/list', { params }),
+  // 认证相关
+  auth: {
+    login: (data) => request.post('/base/access_token', data, { noNeedToken: true }),
+    getUserInfo: () => request.get('/base/userinfo'),
+    getUserMenu: () => request.get('/base/usermenu'),
+    getUserApi: () => request.get('/base/userapi'),
+    updatePassword: (data = {}) => request.post('/base/update_password', data),
+  },
+  
+  // 用户管理
+  users: {
+    getList: (params = {}) => request.get('/user/list', { params }),
+    getById: (id) => request.get(`/user/get`, { params: { id } }),
+    create: (data = {}) => request.post('/user/create', data),
+    update: (data = {}) => request.post('/user/update', data),
+    delete: (data) => request.delete(`/user/delete`, { params: data }),
+    resetPassword: (data = {}) => request.post(`/user/reset_password`, data),
+  },
+  
+  // 角色管理
+  roles: {
+    getList: (params = {}) => request.get('/role/list', { params }),
+    create: (data = {}) => request.post('/role/create', data),
+    update: (data = {}) => request.post('/role/update', data),
+    delete: (data) => request.delete('/role/delete', { params: data }),
+    updateAuthorized: (data = {}) => request.post('/role/authorized', data),
+    getAuthorized: (roleId) => request.get('/role/authorized', { params: { id: roleId } }),
+  },
+  
+  // 菜单管理
+  menus: {
+    getList: (params = {}) => request.get('/menu/list', { params }),
+    create: (data = {}) => request.post('/menu/create', data),
+    update: (data = {}) => request.post('/menu/update', data),
+    delete: (data) => request.delete('/menu/delete', { params: data }),
+  },
+  
+  // API管理
+  apis: {
+    getList: (params = {}) => request.get('/api/list', { params }),
+    create: (data = {}) => request.post('/api/create', data),
+    update: (data = {}) => request.post('/api/update', data),
+    delete: (data) => request.delete('/api/delete', { params: data }),
+    refresh: () => request.post('/api/refresh'),
+  },
+  
+  // 部门管理
+  departments: {
+    getList: (params = {}) => request.get('/dept/list', { params }),
+    create: (data = {}) => request.post('/dept/create', data),
+    update: (data = {}) => request.post('/dept/update', data),
+    delete: (data) => request.delete('/dept/delete', { params: data }),
+  },
+  
+  // 审计日志
+  auditLogs: {
+    getList: (params = {}) => request.get('/auditlog/list', { params }),
+  },
+  
   // 商品分类
-  getCategoryList: (params = {}) => request.get('/product/categories', { params }),
-  getCategoryById: (id) => request.get(`/product/categories/${id}`),
-  createCategory: (data = {}) => request.post('/product/categories', data),
-  updateCategory: (id, data = {}) => request.put(`/product/categories/${id}`, data),
-  deleteCategory: (id) => request.delete(`/product/categories/${id}`),
-  // 商品
-  getProductList: (params = {}) => request.get('/product/products', { params }),
-  getProductById: (id) => request.get(`/product/products/${id}`),
-  createProduct: (data = {}) => request.post('/product/products', data),
-  updateProduct: (id, data = {}) => request.put(`/product/products/${id}`, data),
-  deleteProduct: (id) => request.delete(`/product/products/${id}`),
-  updateProductStatus: (id, status) => request.put(`/product/products/${id}/status`, { status }),
+  categories: {
+    getList: (params = {}) => request.get('/product/categories', { params }),
+    getById: (id) => request.get(`/product/categories/${id}`),
+    create: (data = {}) => request.post('/product/categories', data),
+    update: (id, data = {}) => request.put(`/product/categories/${id}`, data),
+    delete: (id) => request.delete(`/product/categories/${id}`),
+  },
+  
+  // 商品管理
+  products: {
+    getList: (params = {}) => request.get('/product/products', { params }),
+    getById: (id) => request.get(`/product/products/${id}`),
+    create: (data = {}) => request.post('/product/products', data),
+    update: (id, data = {}) => request.put(`/product/products/${id}`, data),
+    delete: (id) => request.delete(`/product/products/${id}`),
+    updateStatus: (id, status) => request.put(`/product/products/${id}/status`, { status }),
+  },
 }

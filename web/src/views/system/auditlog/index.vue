@@ -213,7 +213,7 @@ const columns = [
       ref="$table"
       v-model:query-items="queryItems"
       :columns="columns"
-      :get-data="api.getAuditLogList"
+      :get-data="api.auditLogs.getList"
     >
       <template #queryBar>
         <QueryBarItem label="用户名称" :label-width="70">

@@ -50,9 +50,9 @@ const {
 } = useCRUD({
   name: '用户',
   initForm: {},
-  doCreate: api.createUser,
-  doUpdate: api.updateUser,
-  doDelete: api.deleteUser,
+  doCreate: api.users.create,
+  doUpdate: api.users.update,
+  doDelete: api.users.delete,
   refresh: () => $table.value?.handleSearch(),
 })
 
@@ -61,8 +61,8 @@ const deptOption = ref([])
 
 onMounted(() => {
   $table.value?.handleSearch()
-  api.getRoleList({ page: 1, page_size: 9999 }).then((res) => (roleOption.value = res.data))
-  api.getDepts().then((res) => (deptOption.value = res.data))
+  api.roles.getList({ page: 1, page_size: 9999 }).then((res) => (roleOption.value = res.data))
+  api.departments.getList().then((res) => (deptOption.value = res.data))
 })
 
 const columns = [
@@ -209,7 +209,7 @@ const columns = [
           {
             onPositiveClick: async () => {
               try {
-                await api.resetPassword({ user_id: row.id });
+                await api.users.resetPassword({ user_id: row.id });
                 $message.success('密码已成功重置为123456');
                 await $table.value?.handleSearch();
               } catch (error) {
@@ -261,7 +261,7 @@ async function handleUpdateDisable(row) {
   row.role_ids = role_ids
   row.dept_id = row.dept?.id
   try {
-    await api.updateUser(row)
+    await api.users.update(row)
     $message?.success(row.is_active ? '已取消禁用该用户' : '已禁用该用户')
     $table.value?.handleSearch()
   } catch (err) {
@@ -281,7 +281,7 @@ const nodeProps = ({ option }) => {
         $table.value?.handleSearch()
         lastClickedNodeId = null
       } else {
-        api.getUserList({ dept_id: option.id }).then((res) => {
+        api.users.getList({ dept_id: option.id }).then((res) => {
           $table.value.tableData = res.data
           lastClickedNodeId = option.id
         })
@@ -384,7 +384,7 @@ const validateAddUser = {
           ref="$table"
           v-model:query-items="queryItems"
           :columns="columns"
-          :get-data="api.getUserList"
+          :get-data="api.users.getList"
         >
           <template #queryBar>
             <QueryBarItem label="名称" :label-width="40">

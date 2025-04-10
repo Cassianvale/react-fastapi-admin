@@ -46,9 +46,9 @@ const {
 } = useCRUD({
   name: '角色',
   initForm: {},
-  doCreate: api.createRole,
-  doDelete: api.deleteRole,
-  doUpdate: api.updateRole,
+  doCreate: api.roles.create,
+  doDelete: api.roles.delete,
+  doUpdate: api.roles.update,
   refresh: () => $table.value?.handleSearch(),
 })
 
@@ -179,9 +179,9 @@ const columns = [
                 try {
                   // 使用 Promise.all 来同时发送所有请求
                   const [menusResponse, apisResponse, roleAuthorizedResponse] = await Promise.all([
-                    api.getMenus({ page: 1, page_size: 9999 }),
-                    api.getApis({ page: 1, page_size: 9999 }),
-                    api.getRoleAuthorized({ id: row.id }),
+                    api.menus.getList({ page: 1, page_size: 9999 }),
+                    api.apis.getList({ page: 1, page_size: 9999 }),
+                    api.roles.getAuthorized({ id: row.id }),
                   ])
 
                   // 处理每个请求的响应
@@ -224,7 +224,7 @@ async function updateRoleAuthorized() {
         })
       }
     })
-  const { code, msg } = await api.updateRoleAuthorized({
+  const { code, msg } = await api.roles.updateAuthorized({
     id: role_id.value,
     menu_ids: menu_ids.value,
     api_infos: apiInfos,
@@ -235,7 +235,7 @@ async function updateRoleAuthorized() {
     $message?.error(msg)
   }
 
-  const result = await api.getRoleAuthorized({ id: role_id.value })
+  const result = await api.roles.getAuthorized({ id: role_id.value })
   menu_ids.value = result.data.menus.map((v) => {
     return v.id
   })
@@ -254,7 +254,7 @@ async function updateRoleAuthorized() {
       ref="$table"
       v-model:query-items="queryItems"
       :columns="columns"
-      :get-data="api.getRoleList"
+      :get-data="api.roles.getList"
     >
       <template #queryBar>
         <QueryBarItem label="角色名" :label-width="50">

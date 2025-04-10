@@ -60,6 +60,7 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
         middleware=make_middlewares(),
         lifespan=lifespan,
+        redirect_slashes=False,  # 禁用URL末尾斜杠重定向
     )
     register_exceptions(app)
     register_routers(app, prefix="/api")

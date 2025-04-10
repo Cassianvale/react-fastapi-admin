@@ -23,7 +23,7 @@ async function updateProfile() {
   infoFormRef.value?.validate(async (err) => {
     if (err) return
     await api
-      .updateUser({ ...infoForm.value, id: userStore.userId })
+      .users.update({ ...infoForm.value, id: userStore.userId })
       .then(() => {
         userStore.setUserInfo(infoForm.value)
         isLoading.value = false
@@ -58,7 +58,7 @@ async function updatePassword() {
     if (!err) {
       const data = { ...passwordForm.value, id: userStore.userId }
       await api
-        .updatePassword(data)
+        .auth.updatePassword(data)
         .then((res) => {
           $message.success(res.msg)
           passwordForm.value = {
