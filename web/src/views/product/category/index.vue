@@ -1,282 +1,203 @@
 <template>
-  <div class="h-full flex flex-col">
-    <div class="flex-none p-4 flex justify-between">
+  <CommonPage show-footer title="商品分类列表">
+    <template #action>
       <div>
-        <n-input
-          v-model:value="searchParams.name"
-          placeholder="请输入分类名称"
-          class="w-200"
-          @keydown.enter="handleSearch"
-        />
-        <n-button type="primary" @click="handleSearch" class="ml-4">搜索</n-button>
-        <n-button @click="resetSearch" class="ml-4">重置</n-button>
+        <NButton
+          v-permission="'post/api/v1/category/create'"
+          class="float-right mr-15"
+          type="primary"
+          @click="handleAdd"
+        >
+          <TheIcon icon="material-symbols:add" :size="18" class="mr-5" />新建分类
+        </NButton>
       </div>
-      <div>
-        <n-button type="primary" @click="openModal()">
-          <template #icon>
-            <n-icon>
-              <IconPlus />
-            </n-icon>
-          </template>
-          添加分类
-        </n-button>
-      </div>
-    </div>
-
-    <div class="flex-auto p-4">
-      <n-data-table
-        :columns="columns"
-        :data="tableData"
-        :pagination="pagination"
-        :loading="loading"
-        @update:page="handlePageChange"
-      />
-    </div>
-
-    <n-modal
-      v-model:show="showModal"
-      :title="modalTitle"
-      preset="dialog"
-      positive-text="确认"
-      negative-text="取消"
-      @positive-click="handleSubmit"
-      @negative-click="closeModal"
+    </template>
+    <!-- 表格 -->
+    <CrudTable
+      ref="$table"
+      v-model:query-items="queryItems"
+      :columns="columns"
+      :get-data="api.getCategoryList"
     >
-      <n-form
-        ref="formRef"
-        :model="formData"
-        :rules="rules"
-        label-placement="left"
-        label-width="auto"
-        require-mark-placement="right-hanging"
-      >
-        <n-form-item label="分类名称" path="name">
-          <n-input v-model:value="formData.name" placeholder="请输入分类名称" />
-        </n-form-item>
-        <n-form-item label="分类描述" path="description">
-          <n-input
-            v-model:value="formData.description"
-            type="textarea"
-            placeholder="请输入分类描述"
+      <template #queryBar>
+        <QueryBarItem label="分类名称" :label-width="80">
+          <NInput
+            v-model:value="queryItems.name"
+            clearable
+            type="text"
+            placeholder="请输入分类名称"
+            @keypress.enter="$table?.handleSearch()"
           />
-        </n-form-item>
-        <n-form-item label="排序" path="order">
-          <n-input-number v-model:value="formData.order" placeholder="请输入排序" />
-        </n-form-item>
-      </n-form>
-    </n-modal>
-  </div>
+        </QueryBarItem>
+      </template>
+    </CrudTable>
+
+    <!-- 新增/编辑 弹窗 -->
+    <CrudModal
+      v-model:visible="modalVisible"
+      :title="modalTitle"
+      :loading="modalLoading"
+      @save="handleSave"
+    >
+      <NForm
+        ref="modalFormRef"
+        label-placement="left"
+        label-align="left"
+        :label-width="80"
+        :model="modalForm"
+        :rules="categoryRules"
+      >
+        <NFormItem label="分类名称" path="name">
+          <NInput v-model:value="modalForm.name" clearable placeholder="请输入分类名称" />
+        </NFormItem>
+        <NFormItem label="分类描述" path="description">
+          <NInput v-model:value="modalForm.description" type="textarea" clearable />
+        </NFormItem>
+        <NFormItem label="排序" path="order">
+          <NInputNumber v-model:value="modalForm.order" min="0"></NInputNumber>
+        </NFormItem>
+      </NForm>
+    </CrudModal>
+  </CommonPage>
 </template>
 
 <script setup>
-import { h, ref, reactive, computed } from 'vue'
-import { useMessage } from 'naive-ui'
-import { Icon } from '@iconify/vue'
+import { h, onMounted, ref, resolveDirective, withDirectives } from 'vue'
+import { NButton, NForm, NFormItem, NInput, NInputNumber, NPopconfirm } from 'naive-ui'
+
+import CommonPage from '@/components/page/CommonPage.vue'
+import QueryBarItem from '@/components/query-bar/QueryBarItem.vue'
+import CrudModal from '@/components/table/CrudModal.vue'
+import CrudTable from '@/components/table/CrudTable.vue'
+import TheIcon from '@/components/icon/TheIcon.vue'
+
+import { renderIcon } from '@/utils'
+import { useCRUD } from '@/composables'
 import api from '@/api'
 
-const IconPlus = () => h(Icon, { icon: 'material-symbols:add' })
+defineOptions({ name: '商品分类' })
 
-const message = useMessage()
+const $table = ref(null)
+const queryItems = ref({})
+const vPermission = resolveDirective('permission')
 
-// 表格数据
-const tableData = ref([])
-const loading = ref(false)
-const pagination = reactive({
-  page: 1,
-  pageSize: 10,
-  itemCount: 0,
-  showSizePicker: true,
-  pageSizes: [10, 20, 30, 40]
+const {
+  modalVisible,
+  modalTitle,
+  modalLoading,
+  handleSave,
+  modalForm,
+  modalFormRef,
+  handleEdit,
+  handleDelete,
+  handleAdd,
+} = useCRUD({
+  name: '商品分类',
+  initForm: { name: '', description: '', order: 0 },
+  doCreate: api.createCategory,
+  doUpdate: api.updateCategory,
+  doDelete: api.deleteCategory,
+  refresh: () => $table.value?.handleSearch(),
 })
 
-// 搜索参数
-const searchParams = reactive({
-  name: '',
-  page: 1,
-  page_size: 10
+onMounted(() => {
+  $table.value?.handleSearch()
 })
 
-// 表单数据
-const formRef = ref(null)
-const formData = reactive({
-  id: null,
-  name: '',
-  description: '',
-  order: 0
-})
-
-// 表单验证规则
-const rules = {
-  name: {
-    required: true,
-    message: '请输入分类名称',
-    trigger: 'blur'
-  }
+const categoryRules = {
+  name: [
+    {
+      required: true,
+      message: '请输入分类名称',
+      trigger: ['input', 'blur', 'change'],
+    },
+  ],
 }
 
-// 模态框控制
-const showModal = ref(false)
-const isEdit = ref(false)
-const modalTitle = computed(() => isEdit.value ? '编辑商品分类' : '添加商品分类')
-
-// 表格列定义
 const columns = [
   {
     title: 'ID',
     key: 'id',
-    width: 80
+    width: 80,
+    align: 'center',
   },
   {
     title: '分类名称',
     key: 'name',
-    width: 160
+    width: 160,
+    align: 'center',
+    ellipsis: { tooltip: true },
   },
   {
     title: '分类描述',
-    key: 'description'
+    key: 'description',
+    align: 'center',
+    ellipsis: { tooltip: true },
   },
   {
     title: '排序',
     key: 'order',
-    width: 100
+    width: 100,
+    align: 'center',
   },
   {
     title: '创建时间',
     key: 'created_at',
-    width: 180
-  },
-  {
-    title: '更新时间',
-    key: 'updated_at',
-    width: 180
+    width: 180,
+    align: 'center',
   },
   {
     title: '操作',
     key: 'actions',
     width: 160,
+    align: 'center',
+    fixed: 'right',
     render(row) {
-      return h('div', [
-        h(
-          'button',
-          {
-            style: {
-              marginRight: '10px',
-              color: '#2080f0'
+      return [
+        withDirectives(
+          h(
+            NButton,
+            {
+              size: 'small',
+              type: 'primary',
+              style: 'margin-left: 8px;',
+              onClick: () => handleEdit(row),
             },
-            onClick: () => handleEdit(row)
-          },
-          '编辑'
+            {
+              default: () => '编辑',
+              icon: renderIcon('material-symbols:edit', { size: 16 }),
+            }
+          ),
+          [[vPermission, 'post/api/v1/category/update']]
         ),
         h(
-          'button',
+          NPopconfirm,
           {
-            style: {
-              color: '#d03050'
-            },
-            onClick: () => handleDelete(row)
+            onPositiveClick: () => handleDelete(row.id, false),
+            onNegativeClick: () => {},
           },
-          '删除'
-        )
-      ])
-    }
-  }
+          {
+            trigger: () =>
+              withDirectives(
+                h(
+                  NButton,
+                  {
+                    size: 'small',
+                    type: 'error',
+                    style: 'margin-left: 8px;',
+                  },
+                  {
+                    default: () => '删除',
+                    icon: renderIcon('material-symbols:delete-outline', { size: 16 }),
+                  }
+                ),
+                [[vPermission, 'delete/api/v1/category/delete']]
+              ),
+            default: () => h('div', {}, '确定删除该分类吗?'),
+          }
+        ),
+      ]
+    },
+  },
 ]
-
-// 加载表格数据
-const loadData = async () => {
-  loading.value = true
-  try {
-    const res = await api.getCategoryList(searchParams)
-    if (res.code === 200) {
-      tableData.value = res.data
-      pagination.itemCount = res.total
-      pagination.page = res.page
-      pagination.pageSize = res.page_size
-    }
-  } catch (error) {
-    console.error('加载数据失败', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-// 页码变更
-const handlePageChange = (page) => {
-  searchParams.page = page
-  loadData()
-}
-
-// 搜索
-const handleSearch = () => {
-  searchParams.page = 1
-  loadData()
-}
-
-// 重置搜索
-const resetSearch = () => {
-  searchParams.name = ''
-  searchParams.page = 1
-  loadData()
-}
-
-// 打开模态框
-const openModal = (row) => {
-  if (row) {
-    isEdit.value = true
-    Object.assign(formData, row)
-  } else {
-    isEdit.value = false
-    formData.id = null
-    formData.name = ''
-    formData.description = ''
-    formData.order = 0
-  }
-  showModal.value = true
-}
-
-// 关闭模态框
-const closeModal = () => {
-  showModal.value = false
-  formRef.value?.restoreValidation()
-}
-
-// 编辑
-const handleEdit = (row) => {
-  openModal(row)
-}
-
-// 删除
-const handleDelete = async (row) => {
-  try {
-    await api.deleteCategory(row.id)
-    message.success('删除成功')
-    loadData()
-  } catch (error) {
-    message.error('删除失败')
-  }
-}
-
-// 提交表单
-const handleSubmit = async () => {
-  formRef.value?.validate(async (errors) => {
-    if (errors) return
-
-    try {
-      if (isEdit.value) {
-        await api.updateCategory(formData.id, formData)
-        message.success('更新成功')
-      } else {
-        await api.createCategory(formData)
-        message.success('添加成功')
-      }
-      closeModal()
-      loadData()
-    } catch (error) {
-      message.error(isEdit.value ? '更新失败' : '添加失败')
-    }
-  })
-}
-
-// 初始加载
-loadData()
 </script> 

@@ -21,6 +21,8 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+
 const props = defineProps({
   width: {
     type: String,
@@ -44,7 +46,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:visible', 'onSave'])
+const emit = defineEmits(['update:visible', 'save', 'onSave'])
 const show = computed({
   get() {
     return props.visible
