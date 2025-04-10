@@ -12,7 +12,7 @@ router = APIRouter()
 @router.post("", response_model=None, summary="创建商品")
 async def create_product(product: ProductCreate):
     # 检查分类是否存在
-    category = await ProductCategory.filter(id=product.category_id, is_deleted=False).first()
+    category = await ProductCategory.filter(id=product.category_id).first()
     if not category:
         raise HTTPException(status_code=400, detail="商品分类不存在")
     
@@ -33,7 +33,7 @@ async def get_products(
     page_depend: dict = Depends(get_page_params)
 ):
     # 构建查询条件
-    query = Product.filter(is_deleted=False)
+    query = Product.all()
     if filter_data.name:
         query = query.filter(name__icontains=filter_data.name)
     if filter_data.category_id:
@@ -61,7 +61,7 @@ async def get_products(
 @router.get("/{product_id}", response_model=None, summary="获取商品详情")
 async def get_product(product_id: int):
     # 查询商品
-    product = await Product.filter(id=product_id, is_deleted=False).first()
+    product = await Product.filter(id=product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="商品不存在")
     
@@ -76,13 +76,13 @@ async def get_product(product_id: int):
 @router.put("/{product_id}", response_model=None, summary="更新商品")
 async def update_product(product_id: int, product: ProductUpdate):
     # 查询商品
-    product_obj = await Product.filter(id=product_id, is_deleted=False).first()
+    product_obj = await Product.filter(id=product_id).first()
     if not product_obj:
         raise HTTPException(status_code=404, detail="商品不存在")
     
     # 检查分类是否存在
     if product.category_id:
-        category_exists = await ProductCategory.filter(id=product.category_id, is_deleted=False).exists()
+        category_exists = await ProductCategory.filter(id=product.category_id).exists()
         if not category_exists:
             raise HTTPException(status_code=400, detail="商品分类不存在")
     
@@ -102,13 +102,12 @@ async def update_product(product_id: int, product: ProductUpdate):
 @router.delete("/{product_id}", response_model=None, summary="删除商品")
 async def delete_product(product_id: int):
     # 查询商品
-    product = await Product.filter(id=product_id, is_deleted=False).first()
+    product = await Product.filter(id=product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="商品不存在")
     
-    # 软删除商品
-    product.is_deleted = True
-    await product.save()
+    # 直接删除商品
+    await product.delete()
     
     return Success(msg="删除成功")
 
@@ -116,7 +115,7 @@ async def delete_product(product_id: int):
 @router.put("/{product_id}/status", response_model=None, summary="更新商品状态")
 async def update_product_status(product_id: int, status: bool = Body(..., embed=True)):
     # 查询商品
-    product = await Product.filter(id=product_id, is_deleted=False).first()
+    product = await Product.filter(id=product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="商品不存在")
     

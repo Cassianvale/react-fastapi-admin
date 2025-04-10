@@ -267,13 +267,7 @@ const handleSave = async () => {
     
     // 处理返回结果
     if (result?.data?.id) {
-      if (modalAction.value === 'add') {
-        // 新增模式下，可能是恢复了已删除的部门
-        message.success('部门创建成功（已恢复之前删除的同名部门）')
-      } else if (modalAction.value === 'edit') {
-        // 编辑模式下，可能删除了一个同名的已删除部门
-        message.success('部门更新成功（已处理同名冲突）')
-      }
+      message.success(modalAction.value === 'add' ? '部门创建成功' : '部门更新成功')
     }
     
     // 成功保存后刷新部门选择器数据
@@ -282,8 +276,8 @@ const handleSave = async () => {
     currentEditingDeptId.value = null
   } catch (error) {
     // 处理部门名称重复错误
-    if (error.response?.data?.detail?.includes('UNIQUE constraint failed: dept.name')) {
-      message.error('部门名称已存在，请使用其他名称')
+    if (error.response?.data?.detail?.includes('部门名称') && error.response?.data?.detail?.includes('已存在')) {
+      message.error(error.response?.data?.detail || '部门名称已存在，请使用其他名称')
       modalLoading.value = false
       return
     }

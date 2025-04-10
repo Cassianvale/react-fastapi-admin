@@ -12,7 +12,7 @@ router = APIRouter()
 @router.post("", response_model=None, summary="创建商品分类")
 async def create_category(category: ProductCategoryCreate):
     # 检查分类名称是否已存在
-    exists = await ProductCategory.filter(name=category.name, is_deleted=False).exists()
+    exists = await ProductCategory.filter(name=category.name).exists()
     if exists:
         raise HTTPException(status_code=400, detail="商品分类名称已存在")
     
@@ -27,7 +27,7 @@ async def get_categories(
     page_depend: dict = Depends(get_page_params)
 ):
     # 构建查询条件
-    query = ProductCategory.filter(is_deleted=False)
+    query = ProductCategory.all()
     if name:
         query = query.filter(name__icontains=name)
     
@@ -48,7 +48,7 @@ async def get_categories(
 @router.get("/{category_id}", response_model=None, summary="获取商品分类详情")
 async def get_category(category_id: int):
     # 查询商品分类
-    category = await ProductCategory.filter(id=category_id, is_deleted=False).first()
+    category = await ProductCategory.filter(id=category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="商品分类不存在")
     
@@ -58,9 +58,15 @@ async def get_category(category_id: int):
 @router.put("/{category_id}", response_model=None, summary="更新商品分类")
 async def update_category(category_id: int, category: ProductCategoryUpdate):
     # 查询商品分类
-    category_obj = await ProductCategory.filter(id=category_id, is_deleted=False).first()
+    category_obj = await ProductCategory.filter(id=category_id).first()
     if not category_obj:
         raise HTTPException(status_code=404, detail="商品分类不存在")
+    
+    # 检查更新的名称是否与其他分类重复
+    if category.name and category.name != category_obj.name:
+        exists = await ProductCategory.filter(name=category.name).exists()
+        if exists:
+            raise HTTPException(status_code=400, detail="商品分类名称已存在")
     
     # 更新商品分类
     update_data = {k: v for k, v in category.dict().items() if v is not None}
@@ -73,12 +79,17 @@ async def update_category(category_id: int, category: ProductCategoryUpdate):
 @router.delete("/{category_id}", response_model=None, summary="删除商品分类")
 async def delete_category(category_id: int):
     # 查询商品分类
-    category = await ProductCategory.filter(id=category_id, is_deleted=False).first()
+    category = await ProductCategory.filter(id=category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="商品分类不存在")
     
-    # 软删除商品分类
-    category.is_deleted = True
-    await category.save()
+    # 检查是否有商品使用此分类
+    from app.models.product import Product
+    has_products = await Product.filter(category_id=category_id).exists()
+    if has_products:
+        raise HTTPException(status_code=400, detail="该分类下存在商品，无法删除")
+    
+    # 直接删除商品分类
+    await category.delete()
     
     return Success(msg="删除成功") 

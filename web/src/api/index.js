@@ -58,6 +58,11 @@ export default {
   // 审计日志
   auditLogs: {
     getList: (params = {}) => request.get('/auditlog/list', { params }),
+    delete: (id) => request.delete(`/auditlog/delete/${id}`),
+    batchDelete: (data) => request.delete('/auditlog/batch_delete', { data }),
+    clear: (params = {}) => request.delete('/auditlog/clear', { params }),
+    export: (data = {}) => request.post('/auditlog/export', data),
+    getStatistics: (params = {}) => request.get('/auditlog/statistics', { params }),
   },
   
   // 商品分类

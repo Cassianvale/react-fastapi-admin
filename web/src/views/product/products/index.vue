@@ -19,7 +19,7 @@
       ref="$table"
       v-model:query-items="queryItems"
       :columns="columns"
-      :get-data="api.getProductList"
+      :get-data="loadProducts"
     >
       <template #queryBar>
         <QueryBarItem label="商品名称" :label-width="80">
@@ -163,10 +163,20 @@ const statusOptions = [
 ]
 const categoryOptions = ref([])
 
+// 加载商品数据
+const loadProducts = async (params) => {
+  try {
+    return await api.products.getList(params)
+  } catch (error) {
+    $message.error('加载商品失败')
+    return { data: [] }
+  }
+}
+
 // 加载分类选项
 const loadCategories = async () => {
   try {
-    const res = await api.getCategoryList({ page_size: 100 })
+    const res = await api.categories.getList({ page_size: 100 })
     if (res.code === 200) {
       categoryOptions.value = res.data.map(item => ({
         label: item.name,
@@ -235,13 +245,13 @@ const {
     description: '',
     status: true
   },
-  doCreate: api.createProduct,
+  doCreate: (data) => api.products.create(data),
   doUpdate: (data) => {
     // 从数据中提取ID，然后传递ID和剩余数据给API
     const { id, ...restData } = data
-    return api.updateProduct(id, restData)
+    return api.products.update(id, restData)
   },
-  doDelete: api.deleteProduct,
+  doDelete: (id) => api.products.delete(id),
   refresh: () => $table.value?.handleSearch(),
 })
 
@@ -249,12 +259,12 @@ const {
 const handleSave = async (apiData) => {
   try {
     if (modalAction.value === 'add') {
-      await api.createProduct(apiData)
+      await api.products.create(apiData)
       $message.success('新增成功')
     } else if (modalAction.value === 'edit') {
       // 从表单数据中分离ID和其他数据
       const { id, ...productData } = apiData
-      await api.updateProduct(id, productData)
+      await api.products.update(id, productData)
       $message.success('编辑成功')
     }
     modalVisible.value = false
@@ -316,7 +326,7 @@ const handleSubmit = async () => {
 // 切换商品状态
 const handleToggleStatus = async (row) => {
   try {
-    await api.updateProductStatus(row.id, !row.status)
+    await api.products.updateStatus(row.id, !row.status)
     $message.success(`商品已${row.status ? '下架' : '上架'}`)
     $table.value?.handleSearch()
   } catch (error) {

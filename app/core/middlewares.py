@@ -206,6 +206,33 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
         except Exception:
             data["user_id"] = 0
             data["username"] = ""
+            
+        # 获取IP地址
+        data["ip_address"] = request.client.host if request.client else ""
+        
+        # 获取用户代理
+        data["user_agent"] = request.headers.get("user-agent", "")
+        
+        # 设置操作类型
+        if request.method == "GET":
+            data["operation_type"] = "查询"
+        elif request.method == "POST":
+            data["operation_type"] = "创建"
+        elif request.method == "PUT":
+            data["operation_type"] = "更新"
+        elif request.method == "DELETE":
+            data["operation_type"] = "删除"
+        else:
+            data["operation_type"] = "其他"
+        
+        # 设置日志级别
+        if 200 <= response.status_code < 300:
+            data["log_level"] = "info"
+        elif 300 <= response.status_code < 400:
+            data["log_level"] = "warning"
+        else:
+            data["log_level"] = "error"
+            
         return data
 
     async def before_request(self, request: Request):

@@ -87,3 +87,78 @@ class AuditLog(BaseModel, TimestampMixin):
     response_time = fields.IntField(default=0, description="响应时间(单位ms)", index=True)
     request_args = fields.JSONField(null=True, description="请求参数")
     response_body = fields.JSONField(null=True, description="返回数据")
+    ip_address = fields.CharField(max_length=64, default="", description="IP地址", index=True)
+    user_agent = fields.CharField(max_length=512, default="", description="用户代理", index=True)
+    operation_type = fields.CharField(max_length=32, default="", description="操作类型", index=True)
+    log_level = fields.CharField(max_length=16, default="info", description="日志级别", index=True)
+    is_deleted = fields.BooleanField(default=False, description="是否已删除", index=True)
+
+    class Meta:
+        table = "audit_log"
+        indexes = [
+            # 创建复合索引以提高查询性能
+            ("created_at", "username"),
+            ("created_at", "module"),
+            ("created_at", "status"),
+            ("created_at", "operation_type"),
+            ("created_at", "log_level")
+        ]
+    
+    async def to_dict(self):
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "username": self.username,
+            "module": self.module,
+            "summary": self.summary,
+            "method": self.method,
+            "path": self.path,
+            "status": self.status,
+            "response_time": self.response_time,
+            "request_args": self.request_args,
+            "response_body": self.response_body,
+            "ip_address": self.ip_address,
+            "user_agent": self.user_agent,
+            "operation_type": self.operation_type,
+            "log_level": self.log_level,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at else None,
+            "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M:%S") if self.updated_at else None
+        }
+    
+    @classmethod
+    async def get_logs_by_date_range(cls, start_date, end_date, **filters):
+        """根据日期范围和过滤条件获取日志"""
+        q = Q(created_at__range=[start_date, end_date])
+        for key, value in filters.items():
+            if value:
+                if isinstance(value, str) and key not in ["status", "user_id", "response_time"]:
+                    q &= Q(**{f"{key}__icontains": value})
+                else:
+                    q &= Q(**{key: value})
+        return await cls.filter(q & Q(is_deleted=False)).order_by("-created_at")
+    
+    @classmethod
+    async def get_logs_statistics(cls, days=7):
+        """获取最近n天的日志统计信息"""
+        import datetime
+        today = datetime.date.today()
+        start_date = today - datetime.timedelta(days=days-1)
+        
+        result = {}
+        for i in range(days):
+            current_date = start_date + datetime.timedelta(days=i)
+            next_date = current_date + datetime.timedelta(days=1)
+            count = await cls.filter(
+                created_at__gte=current_date.strftime("%Y-%m-%d"),
+                created_at__lt=next_date.strftime("%Y-%m-%d"),
+                is_deleted=False
+            ).count()
+            result[current_date.strftime("%Y-%m-%d")] = count
+        
+        return result
+
+    @classmethod
+    async def batch_delete(cls, ids):
+        """批量删除日志(软删除)"""
+        return await cls.filter(id__in=ids).update(is_deleted=True)

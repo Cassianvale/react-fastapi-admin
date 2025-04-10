@@ -17,7 +17,7 @@
       ref="$table"
       v-model:query-items="queryItems"
       :columns="columns"
-      :get-data="api.getCategoryList"
+      :get-data="loadCategories"
     >
       <template #queryBar>
         <QueryBarItem label="分类名称" :label-width="80">
@@ -63,7 +63,7 @@
 
 <script setup>
 import { h, onMounted, ref, resolveDirective, withDirectives } from 'vue'
-import { NButton, NForm, NFormItem, NInput, NInputNumber, NPopconfirm } from 'naive-ui'
+import { NButton, NForm, NFormItem, NInput, NInputNumber, NPopconfirm, useMessage } from 'naive-ui'
 
 import CommonPage from '@/components/page/CommonPage.vue'
 import QueryBarItem from '@/components/query-bar/QueryBarItem.vue'
@@ -80,6 +80,28 @@ defineOptions({ name: '商品分类' })
 const $table = ref(null)
 const queryItems = ref({})
 const vPermission = resolveDirective('permission')
+const message = useMessage()
+
+// 加载分类数据
+const loadCategories = async (params) => {
+  try {
+    return await api.categories.getList(params)
+  } catch (error) {
+    message.error('加载分类失败')
+    return { data: [] }
+  }
+}
+
+// 删除分类
+const deleteCategory = async (id) => {
+  try {
+    await api.categories.delete(id)
+    message.success('删除成功')
+    await $table.value?.handleSearch()
+  } catch (error) {
+    message.error('删除失败')
+  }
+}
 
 const {
   modalVisible,
@@ -89,14 +111,13 @@ const {
   modalForm,
   modalFormRef,
   handleEdit,
-  handleDelete,
   handleAdd,
 } = useCRUD({
   name: '商品分类',
   initForm: { name: '', description: '', order: 0 },
-  doCreate: api.createCategory,
-  doUpdate: api.updateCategory,
-  doDelete: api.deleteCategory,
+  doCreate: (data) => api.categories.create(data),
+  doUpdate: (data) => api.categories.update(data.id, data),
+  doDelete: (id) => api.categories.delete(id),
   refresh: () => $table.value?.handleSearch(),
 })
 
@@ -173,7 +194,7 @@ const columns = [
         h(
           NPopconfirm,
           {
-            onPositiveClick: () => handleDelete(row.id, false),
+            onPositiveClick: () => deleteCategory(row.id),
             onNegativeClick: () => {},
           },
           {

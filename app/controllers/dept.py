@@ -12,8 +12,6 @@ class DeptController(CRUDBase[Dept, DeptCreate, DeptUpdate]):
 
     async def get_dept_tree(self, name):
         q = Q()
-        # 获取所有未被软删除的部门
-        q &= Q(is_deleted=False)
         if name:
             q &= Q(name__contains=name)
         all_depts = await self.model.filter(q).order_by("order")
@@ -42,64 +40,39 @@ class DeptController(CRUDBase[Dept, DeptCreate, DeptUpdate]):
 
     async def update_dept_closure(self, obj: Dept):
         parent_depts = await DeptClosure.filter(descendant=obj.parent_id)
-        for i in parent_depts:
-            print(i.ancestor, i.descendant)
         dept_closure_objs: list[DeptClosure] = []
         # 插入父级关系
         for item in parent_depts:
             dept_closure_objs.append(DeptClosure(ancestor=item.ancestor, descendant=obj.id, level=item.level + 1))
-        # 插入自身x
+        # 插入自身
         dept_closure_objs.append(DeptClosure(ancestor=obj.id, descendant=obj.id, level=0))
         # 创建关系
         await DeptClosure.bulk_create(dept_closure_objs)
 
     @atomic()
     async def create_dept(self, obj_in: DeptCreate):
-        # 检查是否存在同名的已删除部门
-        existing_dept = await self.model.filter(name=obj_in.name, is_deleted=True).first()
-        
-        if existing_dept:
-            # 如果存在同名已删除部门，恢复该部门
-            print(f"恢复已删除的部门: {existing_dept.name}, ID: {existing_dept.id}")
-            existing_dept.is_deleted = False
-            existing_dept.desc = obj_in.desc
-            existing_dept.order = obj_in.order
-            existing_dept.parent_id = obj_in.parent_id
-            await existing_dept.save()
+        # 检查部门名称是否已存在
+        exists = await self.model.filter(name=obj_in.name).exists()
+        if exists:
+            raise ValueError(f"部门名称 '{obj_in.name}' 已存在")
             
-            # 重新创建部门关系
-            await DeptClosure.filter(ancestor=existing_dept.id).delete()
-            await DeptClosure.filter(descendant=existing_dept.id).delete()
-            await self.update_dept_closure(existing_dept)
-            
-            return existing_dept
-        else:
-            # 创建新部门
-            if obj_in.parent_id != 0:
-                await self.get(id=obj_in.parent_id)
-            new_obj = await self.create(obj_in=obj_in)
-            await self.update_dept_closure(new_obj)
-            return new_obj
+        # 创建新部门
+        if obj_in.parent_id != 0:
+            await self.get(id=obj_in.parent_id)
+        new_obj = await self.create(obj_in=obj_in)
+        await self.update_dept_closure(new_obj)
+        return new_obj
 
     @atomic()
     async def update_dept(self, obj_in: DeptUpdate):
         dept_obj = await self.get(id=obj_in.id)
         
-        # 如果部门名称发生变化，需要检查是否存在同名被删除的部门
+        # 如果部门名称发生变化，需要检查名称是否重复
         if dept_obj.name != obj_in.name:
-            # 检查是否存在同名但已被标记删除的部门
-            same_name_deleted_dept = await self.model.filter(
-                name=obj_in.name, 
-                is_deleted=True
-            ).exclude(id=obj_in.id).first()
-            
-            if same_name_deleted_dept:
-                print(f"编辑部门名称与已删除部门冲突，删除冲突部门: {same_name_deleted_dept.name}, ID: {same_name_deleted_dept.id}")
-                # 删除关系
-                await DeptClosure.filter(ancestor=same_name_deleted_dept.id).delete()
-                await DeptClosure.filter(descendant=same_name_deleted_dept.id).delete()
-                # 物理删除冲突的部门记录
-                await same_name_deleted_dept.delete()
+            # 检查是否存在同名部门
+            same_name_dept = await self.model.filter(name=obj_in.name).exclude(id=obj_in.id).exists()
+            if same_name_dept:
+                raise ValueError(f"部门名称 '{obj_in.name}' 已存在")
         
         # 更新部门关系
         if dept_obj.parent_id != obj_in.parent_id:
@@ -138,19 +111,25 @@ class DeptController(CRUDBase[Dept, DeptCreate, DeptUpdate]):
             # 获取所有子部门ID（包括自身）
             dept_ids = await self.get_child_dept_ids(dept_id)
             
-            # 软删除所有相关部门
-            await Dept.filter(id__in=dept_ids).update(is_deleted=True)
-            
             # 删除关系表中的所有相关记录
             for child_id in dept_ids:
                 await DeptClosure.filter(descendant=child_id).delete()
-        else:
-            # 仅删除当前部门
-            dept.is_deleted = True
-            await dept.save()
+                await DeptClosure.filter(ancestor=child_id).delete()
             
+            # 物理删除所有相关部门
+            await Dept.filter(id__in=dept_ids).delete()
+        else:
+            # 检查是否有子部门
+            child_depts = await self.get_child_dept_ids(dept_id)
+            if len(child_depts) > 1:  # 大于1是因为包含自身
+                raise ValueError("该部门下有子部门，不能单独删除。请使用级联删除或先删除子部门")
+                
             # 删除关系
             await DeptClosure.filter(descendant=dept_id).delete()
+            await DeptClosure.filter(ancestor=dept_id).delete()
+            
+            # 物理删除当前部门
+            await dept.delete()
 
 
 dept_controller = DeptController()
