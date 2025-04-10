@@ -41,36 +41,45 @@ export default function ({ name, initForm = {}, doCreate, doDelete, doUpdate, re
       modalVisible.value = false
       return
     }
-    modalFormRef.value?.validate(async (err) => {
-      if (err) return
-      const actions = {
-        add: {
-          api: () => doCreate(modalForm.value),
-          cb: () => {
-            callbacks.forEach((callback) => callback && callback())
+    
+    return new Promise((resolve, reject) => {
+      modalFormRef.value?.validate(async (err) => {
+        if (err) {
+          reject(err)
+          return
+        }
+        
+        const actions = {
+          add: {
+            api: () => doCreate(modalForm.value),
+            cb: () => {
+              callbacks.forEach((callback) => callback && callback())
+            },
+            msg: () => $message.success('新增成功'),
           },
-          msg: () => $message.success('新增成功'),
-        },
-        edit: {
-          api: () => doUpdate(modalForm.value),
-          cb: () => {
-            callbacks.forEach((callback) => callback && callback())
+          edit: {
+            api: () => doUpdate(modalForm.value),
+            cb: () => {
+              callbacks.forEach((callback) => callback && callback())
+            },
+            msg: () => $message.success('编辑成功'),
           },
-          msg: () => $message.success('编辑成功'),
-        },
-      }
-      const action = actions[modalAction.value]
+        }
+        const action = actions[modalAction.value]
 
-      try {
-        modalLoading.value = true
-        const data = await action.api()
-        action.cb()
-        action.msg()
-        modalLoading.value = modalVisible.value = false
-        data && refresh(data)
-      } catch (error) {
-        modalLoading.value = false
-      }
+        try {
+          modalLoading.value = true
+          const data = await action.api()
+          action.cb()
+          action.msg()
+          modalLoading.value = modalVisible.value = false
+          data && refresh(data)
+          resolve(data) // 返回API响应数据
+        } catch (error) {
+          modalLoading.value = false
+          reject(error)
+        }
+      })
     })
   }
 

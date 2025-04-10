@@ -28,21 +28,22 @@ async def get_dept(
 async def create_dept(
     dept_in: DeptCreate,
 ):
-    await dept_controller.create_dept(obj_in=dept_in)
-    return Success(msg="Created Successfully")
+    dept_obj = await dept_controller.create_dept(obj_in=dept_in)
+    return Success(msg="Created Successfully", data={"id": dept_obj.id})
 
 
 @router.post("/update", summary="更新部门")
 async def update_dept(
     dept_in: DeptUpdate,
 ):
-    await dept_controller.update_dept(obj_in=dept_in)
-    return Success(msg="Update Successfully")
+    dept_obj = await dept_controller.update_dept(obj_in=dept_in)
+    return Success(msg="Update Successfully", data={"id": dept_obj.id})
 
 
 @router.delete("/delete", summary="删除部门")
 async def delete_dept(
     dept_id: int = Query(..., description="部门ID"),
+    cascade: bool = Query(True, description="是否级联删除子部门"),
 ):
-    await dept_controller.delete_dept(dept_id=dept_id)
+    await dept_controller.delete_dept(dept_id=dept_id, cascade=cascade)
     return Success(msg="Deleted Success")
