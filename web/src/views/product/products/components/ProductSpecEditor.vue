@@ -23,7 +23,7 @@
       </NCard>
       
       <div v-else class="spec-items-container">
-        <div v-for="(row, index) in specRows" :key="index" class="spec-item">
+        <div v-for="(row, rowIndex) in specRows" :key="rowIndex" class="spec-item">
           <div class="spec-item-content">
             <div class="spec-input-group">
               <div class="spec-label">规格名称</div>
@@ -31,7 +31,7 @@
                 v-model:value="row.key" 
                 placeholder="如：颜色、尺寸" 
                 class="spec-input"
-                @update:value="updateSpecifications" 
+                @update:value="() => handleUpdateRow(rowIndex)" 
               />
             </div>
             <div class="spec-input-group">
@@ -40,7 +40,7 @@
                 v-model:value="row.value" 
                 placeholder="如：红色、XL" 
                 class="spec-input"
-                @update:value="updateSpecifications" 
+                @update:value="() => handleUpdateRow(rowIndex)" 
               />
             </div>
             <div class="spec-actions">
@@ -49,20 +49,22 @@
                 quaternary 
                 circle 
                 type="error" 
-                @click="deleteSpecRow(index)"
+                @click="deleteSpecRow(rowIndex)"
               >
                 <template #icon><NIcon><IconDelete /></NIcon></template>
               </NButton>
             </div>
           </div>
-          <NDivider v-if="index < specRows.length - 1" style="margin: 12px 0" />
+          <NDivider v-if="rowIndex < specRows.length - 1" style="margin: 12px 0" />
         </div>
       </div>
     </div>
 
     <!-- JSON预览弹窗 -->
     <NModal v-model:show="showJsonPreview" preset="card" title="规格JSON预览" style="width: 500px">
-      <NCode :code="specificationPreviewJson" language="json" />
+      <div>
+        <pre class="json-preview">{{ specificationPreviewJson }}</pre>
+      </div>
       <template #footer>
         <div class="flex justify-end">
           <NButton @click="showJsonPreview = false">关闭</NButton>
@@ -73,8 +75,8 @@
 </template>
 
 <script setup>
-import { ref, watch, h } from 'vue'
-import { NButton, NCard, NEmpty, NInput, NIcon, NDivider, NModal, NCode } from 'naive-ui'
+import { ref, watch, reactive, h, onMounted, computed } from 'vue'
+import { NButton, NCard, NEmpty, NInput, NIcon, NDivider, NModal } from 'naive-ui'
 import { Icon } from '@iconify/vue'
 
 const props = defineProps({
@@ -98,76 +100,117 @@ const IconCode = () => h(Icon, { icon: 'material-symbols:code' })
 // 规格编辑相关
 const specRows = ref([])
 const showJsonPreview = ref(false)
-const specificationPreviewJson = ref('')
+const specificationPreviewJson = ref('{}')
 
-// 确保规格是有效的对象
-const ensureValidSpecifications = (specs) => {
-  if (typeof specs !== 'object' || specs === null) {
-    return {}
-  }
-  return specs
-}
-
-// 初始化规格行数据
-const initSpecRows = (specs = {}) => {
-  specRows.value = []
-  const validSpecs = ensureValidSpecifications(specs)
-  for (const key in validSpecs) {
-    specRows.value.push({ key, value: validSpecs[key] })
-  }
-}
-
-// 更新规格JSON数据并触发更新事件
-const updateSpecifications = () => {
+// 获取当前规格值的对象形式
+const specificationObject = computed(() => {
   const specs = {}
   for (const row of specRows.value) {
+    // 只有key有值时才添加
     if (row.key && row.key.trim() !== '') {
-      specs[row.key] = row.value
+      specs[row.key] = row.value || ''
     }
   }
+  return specs
+})
+
+// 当规格行更新时，更新输出的值
+const handleUpdateRow = () => {
+  // 使用计算属性获取当前规格对象
+  const specs = specificationObject.value
+  
+  // 触发更新事件
   emit('update:value', specs)
   emit('update:modelValue', specs)
 }
 
+// 初始化规格行数据
+const initSpecRows = (specsObj = {}) => {
+  // 确保输入是有效的对象
+  const validSpecs = typeof specsObj === 'object' && specsObj !== null ? specsObj : {}
+  
+  // 清空当前规格行
+  specRows.value = []
+  
+  // 将对象转换为规格行数组
+  for (const key in validSpecs) {
+    if (Object.prototype.hasOwnProperty.call(validSpecs, key)) {
+      specRows.value.push({
+        key: key,
+        value: validSpecs[key] || ''
+      })
+    }
+  }
+  
+  // 如果没有规格行，添加一个空的规格行
+  if (specRows.value.length === 0) {
+    addSpecRow()
+  }
+}
+
 // 添加规格行
 const addSpecRow = () => {
+  // 添加新的空规格行
   specRows.value.push({ key: '', value: '' })
-  // 添加延迟，确保DOM更新后再更新规格
-  setTimeout(() => {
-    updateSpecifications()
-  }, 0)
 }
 
 // 删除规格行
 const deleteSpecRow = (index) => {
+  // 删除指定索引的规格行
   specRows.value.splice(index, 1)
-  // 添加延迟，确保DOM更新后再更新规格
-  setTimeout(() => {
-    updateSpecifications()
-  }, 0)
+  
+  // 如果删除后没有规格行，添加一个空的规格行
+  if (specRows.value.length === 0) {
+    addSpecRow()
+  }
+  
+  // 更新规格值
+  handleUpdateRow()
 }
 
 // 预览JSON
 const previewJSON = () => {
-  // 优先使用modelValue（如果使用v-model绑定），否则使用value
-  const specs = Object.keys(props.modelValue || {}).length > 0 
-    ? props.modelValue 
-    : props.value
-  specificationPreviewJson.value = JSON.stringify(specs, null, 2)
+  // 使用计算属性获取当前规格对象并格式化为JSON
+  specificationPreviewJson.value = JSON.stringify(specificationObject.value, null, 2)
   showJsonPreview.value = true
 }
 
-// 监听value变化，更新规格行
-watch(() => props.value, (newVal) => {
-  initSpecRows(newVal)
-}, { immediate: true })
+// 获取初始值
+const getInitialValue = () => {
+  // 优先使用modelValue，如果为空则使用value
+  return Object.keys(props.modelValue || {}).length > 0
+    ? props.modelValue
+    : props.value
+}
 
-// 同时监听modelValue变化，更新规格行
-watch(() => props.modelValue, (newVal) => {
-  if (Object.keys(newVal || {}).length > 0) {
-    initSpecRows(newVal)
-  }
-}, { immediate: true })
+// 组件挂载时初始化
+onMounted(() => {
+  const initialValue = getInitialValue()
+  initSpecRows(initialValue)
+})
+
+// 监听外部值变化
+watch(
+  [() => props.modelValue, () => props.value],
+  ([newModelValue, newValue]) => {
+    // 判断是否需要更新内部数据
+    // 只在输入值有实际内容且与当前值不同时更新
+    const externalValue = Object.keys(newModelValue || {}).length > 0
+      ? newModelValue
+      : newValue
+    
+    const currentValue = specificationObject.value
+    
+    // 检查是否与当前值不同
+    const isDifferent = JSON.stringify(externalValue) !== JSON.stringify(currentValue)
+    
+    // 只有当外部值有内容且与当前值不同时才初始化
+    if (Object.keys(externalValue || {}).length > 0 && isDifferent) {
+      initSpecRows(externalValue)
+    }
+  },
+  { deep: true }
+)
 </script>
 
 <style scoped>
@@ -227,5 +270,14 @@ watch(() => props.modelValue, (newVal) => {
   align-items: center;
   justify-content: center;
   width: 40px;
+}
+
+.json-preview {
+  background-color: #f8f8f8;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  overflow-x: auto;
 }
 </style> 

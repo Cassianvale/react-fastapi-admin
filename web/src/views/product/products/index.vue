@@ -81,7 +81,19 @@
           />
         </NFormItem>
         <NFormItem label="商品图片" path="image">
-          <NInput v-model:value="modalForm.image" clearable placeholder="请输入商品图片URL" />
+          <div style="display: flex; flex-direction: column;">
+            <MultiImageUploader 
+              v-model="modalForm.images" 
+              placeholder="点击上传商品图片" 
+              :imageWidth="150" 
+              :imageHeight="150"
+              :maxCount="9"
+            />
+            <NText depth="3" size="small" style="margin-top: 10px; display: block;">
+              <NIcon size="14" style="margin-right: 4px;"><icon-material-symbols:info-outline /></NIcon>
+              第一张图片将作为商品主图
+            </NText>
+          </div>
         </NFormItem>
         <NFormItem label="成本价" path="cost_price">
           <NInputNumber
@@ -115,11 +127,18 @@
         </NFormItem>
       </NForm>
     </CrudModal>
+    
+    <!-- 规格查看弹窗 -->
+    <NModal v-model:show="specModalVisible" preset="card" title="商品规格详情" style="width: 500px">
+      <div v-if="currentSpec">
+        <pre class="json-preview">{{ JSON.stringify(currentSpec, null, 2) }}</pre>
+      </div>
+    </NModal>
   </CommonPage>
 </template>
 
 <script setup>
-import { h, onMounted, ref, resolveDirective, withDirectives } from 'vue'
+import { h, onMounted, ref, resolveDirective, withDirectives, computed } from 'vue'
 import { 
   NButton, 
   NForm, 
@@ -130,7 +149,11 @@ import {
   NSelect, 
   NSwitch, 
   NTag, 
-  useMessage 
+  NDivider,
+  useMessage,
+  NText,
+  NIcon,
+  NModal
 } from 'naive-ui'
 
 import CommonPage from '@/components/page/CommonPage.vue'
@@ -139,6 +162,7 @@ import CrudModal from '@/components/table/CrudModal.vue'
 import CrudTable from '@/components/table/CrudTable.vue'
 import TheIcon from '@/components/icon/TheIcon.vue'
 import ProductSpecEditor from './components/ProductSpecEditor.vue'
+import MultiImageUploader from '@/components/upload/MultiImageUploader.vue'
 
 import { renderIcon } from '@/utils'
 import { useCRUD } from '@/composables'
@@ -238,7 +262,8 @@ const {
   initForm: { 
     name: '',
     category_id: null,
-    image: '',
+    image: '',     // 主图
+    images: [],    // 多图模式
     cost_price: 0,
     sale_price: 0,
     specifications: {},
@@ -289,6 +314,13 @@ const handleEdit = (row) => {
     formData.sale_price = Number(formData.sale_price)
   }
   
+  // 处理图片数据
+  // 如果已有images数组，直接使用
+  // 如果没有images数组但有主图，则创建包含主图的数组
+  // 如果都没有，则使用空数组
+  formData.images = Array.isArray(formData.images) ? formData.images : 
+                    (formData.image ? [formData.image] : [])
+  
   // 调用CRUD钩子的编辑方法
   modalVisible.value = true
   modalAction.value = 'edit'
@@ -315,6 +347,12 @@ const handleSubmit = async () => {
       if (apiData.sale_price !== null && apiData.sale_price !== undefined) {
         apiData.sale_price = formatPrice(apiData.sale_price)
       }
+      
+      // 处理图片数据
+      // 确保images是数组
+      apiData.images = Array.isArray(apiData.images) ? apiData.images : []
+      // 第一张图作为主图
+      apiData.image = apiData.images.length > 0 ? apiData.images[0] : ''
 
       await handleSave(apiData)
     } catch (error) {
@@ -411,6 +449,26 @@ const columns = [
     align: 'center',
   },
   {
+    title: '商品规格',
+    key: 'specifications',
+    width: 100,
+    align: 'center',
+    render(row) {
+      if (!row.specifications || Object.keys(row.specifications).length === 0) {
+        return '无规格'
+      }
+      return h(
+        NButton,
+        {
+          size: 'small',
+          type: 'info',
+          onClick: () => handleViewSpecifications(row),
+        },
+        { default: () => '查看规格' }
+      )
+    }
+  },
+  {
     title: '操作',
     key: 'actions',
     width: 220,
@@ -480,9 +538,42 @@ const columns = [
   },
 ]
 
+// 规格预览状态
+const specModalVisible = ref(false)
+const currentSpec = ref(null)
+
+// 查看商品规格
+const handleViewSpecifications = (row) => {
+  currentSpec.value = row.specifications
+  specModalVisible.value = true
+}
+
 // 初始化
 onMounted(() => {
   $table.value?.handleSearch()
   loadCategories()
 })
 </script> 
+
+<style scoped>
+.image-uploader-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.image-tip {
+  margin-top: 10px;
+  display: block;
+}
+
+.json-preview {
+  background-color: #f8f8f8;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+</style> 

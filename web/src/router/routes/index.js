@@ -51,6 +51,7 @@ export const basicRoutes = [
     path: '/error-page',
     component: Layout,
     redirect: '/error-page/404',
+    isHidden: true,
     meta: {
       title: t('views.errors.label_error'),
       icon: 'mdi:alert-circle-outline',

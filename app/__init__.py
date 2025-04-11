@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
 import asyncio
+import os
 
 from fastapi import FastAPI
 from tortoise import Tortoise
+from dotenv import load_dotenv
 
 from app.core.exceptions import SettingNotFound
 from app.core.init_app import (
@@ -13,6 +15,27 @@ from app.core.init_app import (
 )
 from app.log import logger
 from app.core.config import setup_json_encoder  # 导入JSON编码器设置函数
+
+# 加载环境变量
+def load_environment():
+    """根据环境加载不同的.env文件"""
+    # 首先加载默认的.env文件
+    load_dotenv()
+    
+    # 获取当前环境
+    app_env = os.getenv("APP_ENV", "development")
+    logger.info(f"当前运行环境: {app_env}")
+    
+    # 根据环境加载对应的环境配置文件
+    env_file = f".env.{app_env}"
+    if os.path.exists(env_file):
+        load_dotenv(env_file, override=True)
+        logger.info(f"已加载环境配置文件: {env_file}")
+    else:
+        logger.warning(f"环境配置文件不存在: {env_file}，使用默认.env配置")
+
+# 在导入settings之前加载环境变量
+load_environment()
 
 try:
     from app.settings.config import settings

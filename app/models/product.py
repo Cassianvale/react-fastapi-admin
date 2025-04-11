@@ -19,6 +19,7 @@ class Product(BaseModel, TimestampMixin):
     name = fields.CharField(max_length=100, description="商品名称", index=True)
     category = fields.ForeignKeyField("models.ProductCategory", related_name="products", description="商品分类")
     image = fields.CharField(max_length=255, null=True, description="商品图片")
+    images = fields.JSONField(default=[], description="商品图片列表")
     cost_price = fields.DecimalField(max_digits=10, decimal_places=2, description="成本价")
     sale_price = fields.DecimalField(max_digits=10, decimal_places=2, description="销售价")
     specifications = fields.JSONField(null=True, description="商品规格")

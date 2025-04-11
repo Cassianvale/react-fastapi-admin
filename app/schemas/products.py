@@ -32,6 +32,7 @@ class ProductBase(BaseModel):
     name: str = Field(..., title="商品名称", max_length=100)
     category_id: int = Field(..., title="商品分类ID")
     image: Optional[str] = Field(None, title="商品图片", max_length=255)
+    images: Optional[List[str]] = Field(default=[], title="商品图片列表")
     cost_price: Decimal = Field(..., title="成本价")
     sale_price: Decimal = Field(..., title="销售价")
     specifications: Optional[Dict[str, Any]] = Field(None, title="商品规格")

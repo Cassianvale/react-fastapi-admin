@@ -10,6 +10,7 @@ from .menus import menus_router
 from .roles import roles_router
 from .users import users_router
 from .products import products_main_router
+from .upload import upload_router
 
 v1_router = APIRouter()
 
@@ -21,3 +22,4 @@ v1_router.include_router(apis_router, prefix="/api", dependencies=[DependPermiss
 v1_router.include_router(depts_router, prefix="/dept", dependencies=[DependPermisson])
 v1_router.include_router(auditlog_router, prefix="/auditlog", dependencies=[DependPermisson])
 v1_router.include_router(products_main_router, prefix="/product", dependencies=[DependPermisson])
+v1_router.include_router(upload_router, prefix="/upload", dependencies=[DependPermisson])

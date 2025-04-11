@@ -108,33 +108,18 @@ uv add pyproject.toml
 
 4. 启动服务
 ```sh
-python run.py
-```
+# 以开发环境启动
+python main.py development
 
-#### 方法二：使用 Pip 安装依赖
-1. 创建虚拟环境
-```sh
-python3 -m venv venv
-```
+# 以生产环境启动
+python main.py production
 
-2. 激活虚拟环境
-```sh
-source venv/bin/activate  # Linux/Mac
-# 或
-.\venv\Scripts\activate  # Windows
-```
-
-3. 安装依赖
-```sh
-pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-```
-
-4. 启动服务
-```sh
-python run.py
+# 以测试环境启动
+python main.py testing
 ```
 
 服务现在应该正在运行，访问 http://localhost:9999/docs 查看API文档
+
 
 #### 前端
 启动项目需要以下环境：
@@ -218,27 +203,3 @@ pnpm dev
             ├── system     // 系统管理页面
             └── workbench  // 工作台页面
 ```
-
-### 进群交流
-进群的条件是给项目一个star，小小的star是作者维护下去的动力。
-
-你可以在群里提出任何疑问，我会尽快回复答疑。
-
-<img width="300" src="https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/group.jpg">
-
-## 打赏
-如果项目有帮助到你，可以请作者喝杯咖啡~
-
-<div style="display: flex">
-    <img src="https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/1.jpg" width="300">
-    <img src="https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/2.jpg" width="300">
-</div>
-
-## 定制开发
-如果有基于该项目的定制需求或其他合作，请添加下方微信，备注来意
-
-<img width="300" src="https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/3.jpg">
-
-### Visitors Count
-
-<img align="left" src = "https://profile-counter.glitch.me/vue-fastapi-admin/count.svg" alt="Loading">

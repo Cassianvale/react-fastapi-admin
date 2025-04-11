@@ -83,4 +83,34 @@ export default {
     delete: (id) => request.delete(`/product/products/${id}`),
     updateStatus: (id, status) => request.put(`/product/products/${id}/status`, { status }),
   },
+  
+  // 文件上传
+  upload: {
+    // 上传单张图片
+    uploadImage: (file) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return request.post('/upload/image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+    },
+    // 批量上传文件
+    uploadFiles: (files) => {
+      const formData = new FormData()
+      files.forEach(file => {
+        formData.append('files', file)
+      })
+      return request.post('/upload/files', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+    },
+    // 获取文件列表
+    getFiles: (params = {}) => request.get('/upload/list', { params }),
+    // 删除文件
+    deleteFile: (fileKey) => request.delete('/upload/delete', { params: { file_key: fileKey } })
+  },
 }

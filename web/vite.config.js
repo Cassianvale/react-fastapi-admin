@@ -24,6 +24,13 @@ export default defineConfig(({ command, mode }) => {
     },
     define: viteDefine,
     plugins: createVitePlugins(viteEnv, isBuild),
+    css: {
+      preprocessorOptions: {
+        scss: {
+          silenceDeprecations: ['legacy-js-api']
+        }
+      }
+    },
     server: {
       host: '0.0.0.0',
       port: VITE_PORT,
