@@ -153,7 +153,8 @@ import {
   useMessage,
   NText,
   NIcon,
-  NModal
+  NModal,
+  NTooltip
 } from 'naive-ui'
 
 import CommonPage from '@/components/page/CommonPage.vue'
@@ -457,14 +458,39 @@ const columns = [
       if (!row.specifications || Object.keys(row.specifications).length === 0) {
         return '无规格'
       }
+      
+      // 格式化规格信息供tooltip显示
+      const specInfo = formatSpecifications(row.specifications)
+      
       return h(
-        NButton,
+        NTooltip,
         {
-          size: 'small',
-          type: 'info',
-          onClick: () => handleViewSpecifications(row),
+          trigger: 'hover',
+          placement: 'top',
+          style: { maxWidth: '300px' }
         },
-        { default: () => '查看规格' }
+        {
+          trigger: () => h(
+            NButton,
+            {
+              size: 'small',
+              type: 'info',
+              onClick: () => handleViewSpecifications(row),
+            },
+            { default: () => '查看规格' }
+          ),
+          default: () => h('div', { class: 'spec-tooltip-content' }, [
+            // 规格信息列表
+            ...Object.entries(row.specifications).map(([key, values]) => {
+              return h('div', { class: 'spec-tooltip-item' }, [
+                h('span', { class: 'spec-tooltip-key' }, `${key}:`),
+                h('span', { class: 'spec-tooltip-value' }, 
+                  Array.isArray(values) ? values.join('、') : values
+                )
+              ])
+            })
+          ])
+        }
       )
     }
   },
@@ -548,6 +574,21 @@ const handleViewSpecifications = (row) => {
   specModalVisible.value = true
 }
 
+// 格式化规格信息以便于显示
+const formatSpecifications = (specs) => {
+  if (!specs || Object.keys(specs).length === 0) {
+    return '无规格'
+  }
+  
+  // 将规格对象格式化为可读文本
+  const formattedSpecs = Object.entries(specs).map(([key, values]) => {
+    const valueStr = Array.isArray(values) ? values.join('、') : values
+    return `${key}: ${valueStr}`
+  })
+  
+  return formattedSpecs.join('\n')
+}
+
 // 初始化
 onMounted(() => {
   $table.value?.handleSearch()
@@ -575,5 +616,29 @@ onMounted(() => {
   overflow-x: auto;
   max-height: 400px;
   overflow-y: auto;
+}
+
+.spec-tooltip-content {
+  font-size: 14px;
+  text-align: left;
+}
+
+.spec-tooltip-item {
+  margin-bottom: 6px;
+  white-space: nowrap;
+}
+
+.spec-tooltip-item:last-child {
+  margin-bottom: 0;
+}
+
+.spec-tooltip-key {
+  font-weight: 500;
+  margin-right: 6px;
+  color: #606266;
+}
+
+.spec-tooltip-value {
+  color: #333;
 }
 </style> 

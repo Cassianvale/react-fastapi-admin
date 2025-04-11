@@ -34,14 +34,32 @@
                 @update:value="() => handleUpdateRow(rowIndex)" 
               />
             </div>
-            <div class="spec-input-group">
+            <div class="spec-input-group flex-grow-1">
               <div class="spec-label">规格值</div>
-              <NInput 
-                v-model:value="row.value" 
-                placeholder="如：红色、XL" 
-                class="spec-input"
-                @update:value="() => handleUpdateRow(rowIndex)" 
-              />
+              <div class="spec-values-container">
+                <div v-for="(value, valueIndex) in row.values" :key="`${rowIndex}-${valueIndex}`" class="spec-value-item">
+                  <NInput 
+                    v-model:value="row.values[valueIndex]" 
+                    placeholder="如：红色、XL" 
+                    class="spec-value-input"
+                    @update:value="() => handleUpdateRow(rowIndex)" 
+                  />
+                  <NButton 
+                    size="tiny" 
+                    quaternary 
+                    circle 
+                    type="error" 
+                    class="delete-value-btn"
+                    @click="deleteSpecValue(rowIndex, valueIndex)"
+                  >
+                    <template #icon><NIcon><IconDelete /></NIcon></template>
+                  </NButton>
+                </div>
+                <NButton size="small" text class="add-value-btn" @click="addSpecValue(rowIndex)">
+                  <template #icon><NIcon><IconAdd /></NIcon></template>
+                  添加规格值
+                </NButton>
+              </div>
             </div>
             <div class="spec-actions">
               <NButton 
@@ -96,6 +114,7 @@ const emit = defineEmits(['update:value', 'update:modelValue'])
 const IconRowAdd = () => h(Icon, { icon: 'material-symbols:add-box' })
 const IconDelete = () => h(Icon, { icon: 'material-symbols:delete-outline' })
 const IconCode = () => h(Icon, { icon: 'material-symbols:code' })
+const IconAdd = () => h(Icon, { icon: 'material-symbols:add-circle-outline' })
 
 // 规格编辑相关
 const specRows = ref([])
@@ -108,7 +127,11 @@ const specificationObject = computed(() => {
   for (const row of specRows.value) {
     // 只有key有值时才添加
     if (row.key && row.key.trim() !== '') {
-      specs[row.key] = row.value || ''
+      // 只保留非空的规格值
+      const validValues = row.values.filter(val => val && val.trim() !== '')
+      if (validValues.length > 0) {
+        specs[row.key] = validValues
+      }
     }
   }
   return specs
@@ -135,9 +158,13 @@ const initSpecRows = (specsObj = {}) => {
   // 将对象转换为规格行数组
   for (const key in validSpecs) {
     if (Object.prototype.hasOwnProperty.call(validSpecs, key)) {
+      const values = Array.isArray(validSpecs[key]) 
+        ? [...validSpecs[key]] 
+        : (validSpecs[key] ? [validSpecs[key]] : [])
+      
       specRows.value.push({
         key: key,
-        value: validSpecs[key] || ''
+        values: values.length > 0 ? values : [''] // 至少包含一个空值
       })
     }
   }
@@ -151,7 +178,7 @@ const initSpecRows = (specsObj = {}) => {
 // 添加规格行
 const addSpecRow = () => {
   // 添加新的空规格行
-  specRows.value.push({ key: '', value: '' })
+  specRows.value.push({ key: '', values: [''] })
 }
 
 // 删除规格行
@@ -166,6 +193,24 @@ const deleteSpecRow = (index) => {
   
   // 更新规格值
   handleUpdateRow()
+}
+
+// 添加规格值
+const addSpecValue = (rowIndex) => {
+  specRows.value[rowIndex].values.push('')
+}
+
+// 删除规格值
+const deleteSpecValue = (rowIndex, valueIndex) => {
+  // 只有当存在多个规格值时才允许删除
+  if (specRows.value[rowIndex].values.length > 1) {
+    specRows.value[rowIndex].values.splice(valueIndex, 1)
+    handleUpdateRow()
+  } else {
+    // 如果只剩一个规格值，则清空它
+    specRows.value[rowIndex].values = ['']
+    handleUpdateRow()
+  }
 }
 
 // 预览JSON
@@ -246,7 +291,7 @@ watch(
 
 .spec-item-content {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
 }
 
@@ -265,9 +310,34 @@ watch(
   width: 100%;
 }
 
-.spec-actions {
+.spec-values-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.spec-value-item {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.spec-value-input {
+  flex: 1;
+}
+
+.add-value-btn {
+  margin-top: 4px;
+  align-self: flex-start;
+}
+
+.delete-value-btn {
+  flex-shrink: 0;
+}
+
+.spec-actions {
+  display: flex;
+  align-items: flex-start;
   justify-content: center;
   width: 40px;
 }
