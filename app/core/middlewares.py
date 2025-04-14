@@ -52,10 +52,12 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.methods = methods
         self.exclude_paths = exclude_paths
-        self.audit_log_paths = ["/api/v1/auditlog/list"]
         self.max_body_size = 1024 * 1024  # 1MB 响应体大小限制
+        # 编译正则表达式提高性能
+        self.exclude_paths_regex = [re.compile(path, re.I) for path in exclude_paths]
 
     async def get_request_args(self, request: Request) -> dict:
+        """获取请求参数，优化处理逻辑"""
         args = {}
 
         try:
@@ -66,114 +68,96 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
             # 获取请求体
             if request.method in ["POST", "PUT", "PATCH"]:
                 try:
-                    # 尝试读取JSON请求体，最大尝试读取10KB以防止大型请求体导致问题
                     body_bytes = await request.body()
-                    if body_bytes:
-                        # 确保内容是有效的JSON
-                        content_type = request.headers.get("content-type", "")
-                        if "application/json" in content_type.lower():
-                            try:
-                                # 使用更安全的解析方式
-                                body_str = body_bytes.decode("utf-8", errors="replace")
-                                body = json.loads(body_str)
+                    if not body_bytes:
+                        return args
+
+                    content_type = request.headers.get("content-type", "").lower()
+                    
+                    # 针对不同内容类型分别处理
+                    if "application/json" in content_type:
+                        body_str = body_bytes.decode("utf-8", errors="replace")
+                        try:
+                            body = json.loads(body_str)
+                            if isinstance(body, dict):
                                 args.update(body)
-                            except json.JSONDecodeError:
-                                # JSON解析失败，尝试记录原始内容（限制大小）
-                                args["raw_body"] = body_bytes.decode("utf-8", errors="replace")[:1000]
-                        else:
-                            # 不是JSON请求，尝试表单数据
-                            try:
-                                body = await request.form()
-                                args.update({k: v for k, v in body.items()})
-                            except Exception:
-                                # 如果不是表单，存储原始内容（限制大小）
-                                args["raw_body"] = body_bytes.decode("utf-8", errors="replace")[:1000]
+                            else:
+                                args["body"] = body
+                        except json.JSONDecodeError:
+                            args["raw_body"] = body_str[:1000]
+                    elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
+                        form = await request.form()
+                        args.update({k: v for k, v in form.items()})
+                    else:
+                        # 其他内容类型，存储有限的原始内容
+                        args["raw_body"] = body_bytes.decode("utf-8", errors="replace")[:1000]
                 except Exception as e:
-                    # 捕获所有异常，确保中间件不会崩溃
                     args["parse_error"] = str(e)[:200]
         except Exception as e:
-            # 防止任何异常导致中间件崩溃
             args["middleware_error"] = str(e)[:200]
             
         return args
 
     async def get_response_body(self, request: Request, response: Response) -> Any:
-        # 检查Content-Length
+        """获取响应体内容，优化大型响应体处理"""
+        # 检查Content-Length以避免处理过大的响应
         content_length = response.headers.get("content-length")
         if content_length and int(content_length) > self.max_body_size:
-            return {"code": 0, "msg": "Response too large to log", "data": None}
+            return {"truncated": True, "message": "Response too large to log"}
 
         try:
+            # 获取响应体
             if hasattr(response, "body"):
                 body = response.body
             else:
+                # 收集响应体片段
                 body_chunks = []
                 async for chunk in response.body_iterator:
                     if not isinstance(chunk, bytes):
                         chunk = chunk.encode(response.charset)
                     body_chunks.append(chunk)
-
+                
+                # 重建响应迭代器
                 response.body_iterator = self._async_iter(body_chunks)
                 body = b"".join(body_chunks)
 
-            # 检查是否是审计日志路径，进行特殊处理
-            if any(request.url.path.startswith(path) for path in self.audit_log_paths):
-                try:
-                    data = await self.lenient_json(body)
-                    # 只保留基本信息，去除详细的响应内容
-                    if isinstance(data, dict):
-                        data.pop("response_body", None)
-                        if "data" in data and isinstance(data["data"], list):
-                            for item in data["data"]:
-                                item.pop("response_body", None)
-                    return data
-                except Exception:
-                    return {"code": 0, "msg": "Failed to parse audit log response", "data": None}
-
+            # 解析响应体
             return await self.lenient_json(body)
         except Exception as e:
-            # 捕获所有异常，确保中间件不会崩溃
-            return {"code": 0, "msg": f"Response parsing error: {str(e)[:200]}", "data": None}
+            return {"error": f"Response parsing error: {str(e)[:200]}"}
 
     async def lenient_json(self, v: Any) -> Any:
-        # 记录开始时间
-        start_time = datetime.now()
-        
-        # 使用 asyncio.to_thread 将同步操作转为异步
+        """优化的JSON解析方法，减少异步操作开销"""
         if v is None:
-            logging.debug("lenient_json: Empty input (None)")
             return {}
             
+        # 处理字节类型
         if isinstance(v, bytes):
             try:
                 v = v.decode("utf-8", errors="replace")
-                logging.debug(f"lenient_json: Decoded bytes, length: {len(v)}")
-            except Exception as e:
-                logging.warning(f"lenient_json: Failed to decode bytes: {str(e)[:200]}")
+            except Exception:
                 return {"raw_content": "Binary content"}
                 
+        # 处理字符串类型
         if isinstance(v, str):
             if not v or v.isspace():
-                logging.debug("lenient_json: Empty or whitespace string")
                 return {}
                 
             try:
-                # 使用异步方式处理可能耗时的JSON解析
+                # 对于小型字符串，直接解析而不使用异步
+                if len(v) < 10000:  # 10KB以下直接处理
+                    return json.loads(v)
+                
+                # 大型字符串使用异步处理
                 import asyncio
                 result = await asyncio.to_thread(json.loads, v)
-                end_time = datetime.now()
-                process_time = int((end_time.timestamp() - start_time.timestamp()) * 1000)
-                logging.info(f"lenient_json: JSON parsing completed in {process_time}ms, data size: {len(v)}")
                 return result
-            except (ValueError, TypeError, json.JSONDecodeError) as e:
-                end_time = datetime.now()
-                process_time = int((end_time.timestamp() - start_time.timestamp()) * 1000)
-                logging.warning(f"lenient_json: JSON parsing failed in {process_time}ms: {str(e)[:200]}")
-                return {"raw_content": str(v)[:100] + ("..." if len(str(v)) > 100 else "")}
+            except (ValueError, TypeError, json.JSONDecodeError):
+                # 解析失败则返回截断的原始内容
+                preview = str(v)[:100] + ("..." if len(str(v)) > 100 else "")
+                return {"raw_content": preview}
         
-        end_time = datetime.now()
-        process_time = int((end_time.timestamp() - start_time.timestamp()) * 1000)
-        logging.debug(f"lenient_json: Non-string processing completed in {process_time}ms, type: {type(v)}")
+        # 非字符串类型直接返回
         return v
 
     async def _async_iter(self, items: list[bytes]) -> AsyncGenerator[bytes, None]:
@@ -181,10 +165,36 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
             yield item
 
     async def get_request_log(self, request: Request, response: Response) -> dict:
-        """
-        根据request和response对象获取对应的日志记录数据
-        """
-        data: dict = {"path": request.url.path, "status": response.status_code, "method": request.method}
+        """根据request和response对象获取对应的日志记录数据，优化路由匹配逻辑"""
+        data = {
+            "path": request.url.path, 
+            "status": response.status_code, 
+            "method": request.method,
+            "module": "",
+            "summary": "",
+            "user_id": 0,
+            "username": "",
+            "ip_address": request.client.host if request.client else "",
+            "user_agent": request.headers.get("user-agent", "")
+        }
+        
+        # 设置操作类型
+        operation_map = {
+            "GET": "查询",
+            "POST": "创建",
+            "PUT": "更新",
+            "DELETE": "删除"
+        }
+        data["operation_type"] = operation_map.get(request.method, "其他")
+        
+        # 设置日志级别
+        if 200 <= response.status_code < 300:
+            data["log_level"] = "info"
+        elif 300 <= response.status_code < 400:
+            data["log_level"] = "warning"
+        else:
+            data["log_level"] = "error"
+        
         # 路由信息
         app: FastAPI = request.app
         for route in app.routes:
@@ -195,79 +205,73 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
             ):
                 data["module"] = ",".join(route.tags)
                 data["summary"] = route.summary
+                break
+                
         # 获取用户信息
         try:
             token = request.headers.get("token")
-            user_obj = None
             if token:
-                user_obj: User = await AuthControl.is_authed(token)
-            data["user_id"] = user_obj.id if user_obj else 0
-            data["username"] = user_obj.username if user_obj else ""
+                user_obj = await AuthControl.is_authed(token)
+                if user_obj:
+                    data["user_id"] = user_obj.id
+                    data["username"] = user_obj.username
         except Exception:
-            data["user_id"] = 0
-            data["username"] = ""
-            
-        # 获取IP地址
-        data["ip_address"] = request.client.host if request.client else ""
-        
-        # 获取用户代理
-        data["user_agent"] = request.headers.get("user-agent", "")
-        
-        # 设置操作类型
-        if request.method == "GET":
-            data["operation_type"] = "查询"
-        elif request.method == "POST":
-            data["operation_type"] = "创建"
-        elif request.method == "PUT":
-            data["operation_type"] = "更新"
-        elif request.method == "DELETE":
-            data["operation_type"] = "删除"
-        else:
-            data["operation_type"] = "其他"
-        
-        # 设置日志级别
-        if 200 <= response.status_code < 300:
-            data["log_level"] = "info"
-        elif 300 <= response.status_code < 400:
-            data["log_level"] = "warning"
-        else:
-            data["log_level"] = "error"
+            pass
             
         return data
 
+    async def should_skip_log(self, request: Request) -> bool:
+        """判断是否应该跳过日志记录"""
+        # 检查请求方法
+        if request.method not in self.methods:
+            return True
+            
+        # 检查排除路径
+        path = request.url.path
+        for pattern in self.exclude_paths_regex:
+            if pattern.search(path):
+                return True
+                
+        return False
+
     async def before_request(self, request: Request):
+        """请求前处理"""
+        # 如果不需要记录日志，就不获取请求参数
+        if await self.should_skip_log(request):
+            request.state.skip_audit_log = True
+            return
+            
         request_args = await self.get_request_args(request)
         request.state.request_args = request_args
 
     async def after_request(self, request: Request, response: Response, process_time: int):
-        if request.method in self.methods:
-            for path in self.exclude_paths:
-                if re.search(path, request.url.path, re.I) is not None:
-                    return
-            data: dict = await self.get_request_log(request=request, response=response)
-            data["response_time"] = process_time
+        """请求后处理"""
+        # 检查是否需要跳过日志记录
+        if getattr(request.state, "skip_audit_log", False):
+            return response
+            
+        data = await self.get_request_log(request=request, response=response)
+        data["response_time"] = process_time
 
-            # 确保 request_args 和 response_body 是有效的 JSON 值
-            request_args = getattr(request.state, "request_args", {})
-            if request_args == "":
-                request_args = {}
-            data["request_args"] = request_args
-            
-            response_body = await self.get_response_body(request, response)
-            if response_body == "":
-                response_body = {}
-            data["response_body"] = response_body
-            
-            # 将数据库操作添加到后台任务
-            await BgTasks.add_task(AuditLog.create, **data)
+        # 添加请求参数
+        request_args = getattr(request.state, "request_args", {}) or {}
+        data["request_args"] = request_args
+        
+        # 添加响应体
+        response_body = await self.get_response_body(request, response)
+        data["response_body"] = response_body
+        
+        # 将数据库操作添加到后台任务
+        await BgTasks.add_task(AuditLog.create, **data)
 
         return response
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        start_time: datetime = datetime.now()
+        """请求调度处理"""
+        start_time = datetime.now()
         await self.before_request(request)
         response = await call_next(request)
-        end_time: datetime = datetime.now()
+        end_time = datetime.now()
         process_time = int((end_time.timestamp() - start_time.timestamp()) * 1000)
         await self.after_request(request, response, process_time)
         return response

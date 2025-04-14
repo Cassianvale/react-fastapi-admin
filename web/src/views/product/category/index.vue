@@ -37,7 +37,7 @@
       v-model:visible="modalVisible"
       :title="modalTitle"
       :loading="modalLoading"
-      @save="handleSave"
+      @save="customHandleSave"
     >
       <NForm
         ref="modalFormRef"
@@ -221,4 +221,21 @@ const columns = [
     },
   },
 ]
+
+// 自定义保存处理函数
+const customHandleSave = async () => {
+  try {
+    // 使用原始的handleSave方法处理保存操作
+    await handleSave()
+    // 成功消息由useCRUD组件内部处理
+  } catch (error) {
+    console.error('保存商品分类错误:', error)
+    
+    // 直接显示错误消息
+    message.error(error.message)
+    
+    // 重置加载状态
+    modalLoading.value = false
+  }
+}
 </script> 

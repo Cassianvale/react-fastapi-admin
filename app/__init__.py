@@ -3,6 +3,7 @@ import asyncio
 import os
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse, RedirectResponse
 from tortoise import Tortoise
 from dotenv import load_dotenv
 
@@ -90,6 +91,13 @@ def create_app() -> FastAPI:
     
     # 设置自定义JSON编码器，处理Decimal类型
     setup_json_encoder(app)
+    
+    # 添加根路径处理
+    @app.get("/")
+    async def root():
+        """根路径处理器，提供API信息或重定向到文档"""
+        # 重定向到API文档
+        return RedirectResponse(url="/docs")
     
     return app
 

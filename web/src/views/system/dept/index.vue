@@ -40,21 +40,44 @@ const levelColors = [
 // 获取部门数据并处理为树形结构
 const getTableData = async (params) => {
   try {
-    const res = await api.departments.getList(params)
+    const searchParams = params.name ? { name: params.name } : {}
+    const res = await api.departments.getList(searchParams)
     if (res.data && Array.isArray(res.data)) {
       // 处理树形结构，添加层级信息
-      return { ...res, data: processTreeData(res.data) }
+      const processedData = processTreeData(res.data)
+      // 在返回给表格的同时，存储原始数据供部门选择器使用
+      const originalData = JSON.parse(JSON.stringify(res.data))
+      // 设置全局部门选项数据
+      if (!allDeptOptions.value || allDeptOptions.value.length <= 1) {
+        const fullOptions = [
+          { id: 0, name: '顶级部门', children: [] },
+          ...originalData
+        ]
+        allDeptOptions.value = JSON.parse(JSON.stringify(fullOptions))
+        deptOption.value = fullOptions
+      }
+      
+      return { 
+        data: processedData,
+        original: originalData,
+        total: res.data.length 
+      }
     }
-    return res
+    return { data: [], original: [], total: 0 }
   } catch (error) {
     message.error('获取部门数据失败')
-    return { data: [] }
+    return { data: [], original: [], total: 0 }
   }
 }
 
-// 加载部门选项数据
+// 加载部门选项数据 - 复用已有的部门数据，避免重复请求
 const loadDeptOptions = async () => {
   try {
+    // 如果allDeptOptions已经有数据，则不再重新请求
+    if (allDeptOptions.value && allDeptOptions.value.length > 1) {
+      return
+    }
+    
     const res = await api.departments.getList()
     if (res.data && Array.isArray(res.data)) {
       // 添加顶级部门选项
@@ -168,8 +191,8 @@ const getPlainDeptList = () => {
 
 // 刷新数据
 const refreshData = async () => {
-  await $table.value?.handleSearch()
-  await loadDeptOptions()
+  // 只需调用表格搜索方法，getTableData会自动处理部门选项数据
+  await $table.value?.handleSearch();
 }
 
 // 自定义删除处理函数
@@ -253,7 +276,7 @@ const handleEdit = (row) => {
   originalHandleEdit(fullRow)
 }
 
-// 自定义保存处理函数，增加错误处理
+// 自定义保存处理函数，更新错误处理逻辑
 const handleSave = async () => {
   try {
     // 编辑模式下，确保ID字段存在
@@ -275,15 +298,12 @@ const handleSave = async () => {
     // 重置当前编辑部门ID
     currentEditingDeptId.value = null
   } catch (error) {
-    // 处理部门名称重复错误
-    if (error.response?.data?.detail?.includes('部门名称') && error.response?.data?.detail?.includes('已存在')) {
-      message.error(error.response?.data?.detail || '部门名称已存在，请使用其他名称')
-      modalLoading.value = false
-      return
-    }
+    console.error('部门保存错误:', error)
     
-    // 处理其他错误
-    message.error(error.response?.data?.detail || '保存部门失败，请重试')
+    // 直接使用错误消息
+    const errorMsg = error.message
+    message.error(errorMsg)
+    
     modalLoading.value = false
   }
 }
@@ -477,6 +497,7 @@ const columns = [
       :children-key="'children'"
       :indent="20"
       :default-expand-all="true"
+      :is-pagination="false"
     >
       <template #queryBar>
         <QueryBarItem label="部门名称" :label-width="80">

@@ -22,6 +22,7 @@ from app.core.exceptions import (
     RequestValidationHandle,
     ResponseValidationError,
     ResponseValidationHandle,
+    ValueErrorHandle,
 )
 from app.log import logger
 from app.models.admin import Api, Menu, Role
@@ -48,6 +49,14 @@ def make_middlewares():
                 "/api/v1/base/access_token",
                 "/docs",
                 "/openapi.json",
+                # 审计日志相关的API路径
+                "/api/v1/auditlog/list",
+                "/api/v1/auditlog/delete",
+                "/api/v1/auditlog/batch_delete",
+                "/api/v1/auditlog/clear",
+                "/api/v1/auditlog/export",
+                "/api/v1/auditlog/download",
+                "/api/v1/auditlog/statistics",
             ],
         ),
     ]
@@ -60,6 +69,7 @@ def register_exceptions(app: FastAPI):
     app.add_exception_handler(IntegrityError, IntegrityHandle)
     app.add_exception_handler(RequestValidationError, RequestValidationHandle)
     app.add_exception_handler(ResponseValidationError, ResponseValidationHandle)
+    app.add_exception_handler(ValueError, ValueErrorHandle)
 
 
 def register_routers(app: FastAPI, prefix: str = "/api"):

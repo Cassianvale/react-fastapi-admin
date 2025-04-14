@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, h, reactive, nextTick } from 'vue'
+import { onMounted, ref, h, reactive, nextTick, onBeforeUnmount, computed, watch } from 'vue'
 import { NInput, NSelect, NPopover, NDatePicker, NButton, NSpace, NModal, NCard, NInputNumber, NStatistic, NDivider } from 'naive-ui'
 import { useMessage } from 'naive-ui'
 import TheIcon from '@/components/icon/TheIcon.vue'
@@ -9,7 +9,7 @@ import QueryBarItem from '@/components/query-bar/QueryBarItem.vue'
 import CrudTable from '@/components/table/CrudTable.vue'
 
 import api from '@/api'
-import { defineComponent } from 'vue'
+
 // 导入 echarts 相关
 import * as echarts from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
@@ -29,12 +29,19 @@ echarts.use([
 
 defineOptions({ name: '审计日志' })
 
+// 消息组件
 const message = useMessage()
+
+// 表格引用和状态
 const $table = ref(null)
 const queryItems = ref({})
 const selectedRowKeys = ref([])
+
+// 清空日志弹窗状态
 const showClearModal = ref(false)
 const clearDays = ref(30)
+
+// 统计分析弹窗状态
 const showStatisticsModal = ref(false)
 const statisticsData = ref({})
 const statisticsDays = ref(7)
@@ -42,56 +49,103 @@ const isLoading = ref(false)
 const chartRef = ref(null)
 let chartInstance = null
 
-onMounted(() => {
-  $table.value?.handleSearch()
+// 统计数据计算属性
+const statisticsSummary = computed(() => {
+  if (!statisticsData.value || Object.keys(statisticsData.value).length === 0) {
+    return {
+      total: 0,
+      average: 0,
+      max: 0,
+      min: 0
+    }
+  }
+  
+  const values = Object.values(statisticsData.value)
+  return {
+    total: values.reduce((sum, value) => sum + value, 0),
+    average: Math.round(values.reduce((sum, value) => sum + value, 0) / values.length),
+    max: Math.max(...values),
+    min: Math.min(...values)
+  }
 })
 
-// 获取当天的开始时间的时间戳
-function getStartOfDayTimestamp() {
-  const now = new Date()
-  now.setHours(0, 0, 0, 0) // 将小时、分钟、秒和毫秒都设置为0
-  return now.getTime()
+// 时间处理函数
+const useTimeRange = () => {
+  // 获取当天开始时间
+  const getStartOfDayTimestamp = () => {
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    return now.getTime()
+  }
+  
+  // 获取当天结束时间
+  const getEndOfDayTimestamp = () => {
+    const now = new Date()
+    now.setHours(23, 59, 59, 999)
+    return now.getTime()
+  }
+  
+  // 格式化时间戳为字符串
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp)
+    const pad = (num) => num.toString().padStart(2, '0')
+    
+    const year = date.getFullYear()
+    const month = pad(date.getMonth() + 1)
+    const day = pad(date.getDate())
+    const hours = pad(date.getHours())
+    const minutes = pad(date.getMinutes())
+    const seconds = pad(date.getSeconds())
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  }
+  
+  return {
+    getStartOfDayTimestamp,
+    getEndOfDayTimestamp,
+    formatTimestamp
+  }
 }
 
-// 获取当天的结束时间的时间戳
-function getEndOfDayTimestamp() {
-  const now = new Date()
-  now.setHours(23, 59, 59, 999) // 将小时设置为23，分钟设置为59，秒设置为59，毫秒设置为999
-  return now.getTime()
-}
-
-function formatTimestamp(timestamp) {
-  const date = new Date(timestamp)
-
-  const pad = (num) => num.toString().padStart(2, '0')
-
-  const year = date.getFullYear()
-  const month = pad(date.getMonth() + 1) // 月份从0开始，所以需要+1
-  const day = pad(date.getDate())
-  const hours = pad(date.getHours())
-  const minutes = pad(date.getMinutes())
-  const seconds = pad(date.getSeconds())
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-}
-
+// 初始化时间范围
+const { getStartOfDayTimestamp, getEndOfDayTimestamp, formatTimestamp } = useTimeRange()
 const startOfDayTimestamp = getStartOfDayTimestamp()
 const endOfDayTimestamp = getEndOfDayTimestamp()
 
 queryItems.value.start_time = formatTimestamp(startOfDayTimestamp)
 queryItems.value.end_time = formatTimestamp(endOfDayTimestamp)
 
+// 日期选择器范围值
 const datetimeRange = ref([startOfDayTimestamp, endOfDayTimestamp])
+
+// 处理日期范围变化
 const handleDateRangeChange = (value) => {
   if (value == null) {
     queryItems.value.start_time = null
     queryItems.value.end_time = null
+    datetimeRange.value = null
   } else {
+    // 设置开始时间
     queryItems.value.start_time = formatTimestamp(value[0])
-    queryItems.value.end_time = formatTimestamp(value[1])
+    
+    // 对结束时间进行特殊处理，自动设置为23:59:59
+    if (value[1]) {
+      const endDate = new Date(value[1])
+      // 调整为当天的23:59:59
+      endDate.setHours(23, 59, 59, 999)
+      
+      // 更新结束时间
+      queryItems.value.end_time = formatTimestamp(endDate.getTime())
+      
+      // 同时更新时间选择器的值，以便界面显示
+      datetimeRange.value = [value[0], endDate.getTime()]
+    } else {
+      queryItems.value.end_time = null
+    }
   }
 }
 
+// 请求方法选项
 const methodOptions = [
   { label: 'GET', value: 'GET' },
   { label: 'POST', value: 'POST' },
@@ -99,12 +153,14 @@ const methodOptions = [
   { label: 'DELETE', value: 'DELETE' },
 ]
 
+// 日志级别选项
 const logLevelOptions = [
   { label: '信息', value: 'info' },
   { label: '警告', value: 'warning' },
   { label: '错误', value: 'error' },
 ]
 
+// 操作类型选项
 const operationTypeOptions = [
   { label: '查询', value: '查询' },
   { label: '创建', value: '创建' },
@@ -113,7 +169,8 @@ const operationTypeOptions = [
   { label: '其他', value: '其他' },
 ]
 
-function formatJSON(data) {
+// JSON格式化函数
+const formatJSON = (data) => {
   try {
     return typeof data === 'string' 
       ? JSON.stringify(JSON.parse(data), null, 2)
@@ -123,74 +180,29 @@ function formatJSON(data) {
   }
 }
 
-// 导出日志
-async function handleExport() {
-  try {
-    const response = await api.auditLogs.export({
-      ...queryItems.value
-    })
-    message.success(response.msg || '导出成功')
-  } catch (error) {
-    message.error(error.message || '导出失败')
-  }
-}
+// =========================
+// 图表相关函数
+// =========================
 
-// 删除日志
-async function handleDelete(id) {
-  try {
-    await api.auditLogs.delete(id)
-    message.success('删除成功')
-    $table.value?.handleSearch()
-  } catch (error) {
-    message.error(error.message || '删除失败')
-  }
-}
-
-// 批量删除日志
-async function handleBatchDelete() {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请先选择要删除的日志')
-    return
-  }
-  
-  try {
-    await api.auditLogs.batchDelete(selectedRowKeys.value)
-    message.success('批量删除成功')
-    selectedRowKeys.value = []
-    $table.value?.handleSearch()
-  } catch (error) {
-    message.error(error.message || '批量删除失败')
-  }
-}
-
-// 清空日志
-async function handleClear() {
-  try {
-    await api.auditLogs.clear({ days: clearDays.value })
-    message.success('清空成功')
-    showClearModal.value = false
-    $table.value?.handleSearch()
-  } catch (error) {
-    message.error(error.message || '清空失败')
-  }
-}
-
-// 初始化ECharts图表
-function initChart() {
+// 初始化图表
+const initChart = () => {
   if (chartInstance) {
     chartInstance.dispose()
   }
   
   nextTick(() => {
-    if (chartRef.value) {
-      chartInstance = echarts.init(chartRef.value)
-      updateChart()
-    }
+    if (!chartRef.value) return
+    
+    chartInstance = echarts.init(chartRef.value)
+    updateChart()
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', handleResize)
   })
 }
 
 // 更新图表数据
-function updateChart() {
+const updateChart = () => {
   if (!chartInstance || !statisticsData.value || Object.keys(statisticsData.value).length === 0) return
   
   const dates = Object.keys(statisticsData.value)
@@ -270,14 +282,84 @@ function updateChart() {
 }
 
 // 处理窗口大小变化
-function handleResize() {
+const handleResize = () => {
   if (chartInstance) {
     chartInstance.resize()
   }
 }
 
+// 在弹窗关闭时移除事件监听
+const handleModalClose = () => {
+  window.removeEventListener('resize', handleResize)
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+}
+
+onBeforeUnmount(() => {
+  // 确保组件销毁时清理资源
+  handleModalClose()
+})
+
+// =========================
+// API操作函数
+// =========================
+
+// 导出日志
+const handleExport = async () => {
+  try {
+    const response = await api.auditLogs.export({
+      ...queryItems.value
+    })
+    message.success(response.msg || '导出成功')
+  } catch (error) {
+    message.error(error.message || '导出失败')
+  }
+}
+
+// 删除日志
+const handleDelete = async (id) => {
+  try {
+    await api.auditLogs.delete(id)
+    message.success('删除成功')
+    $table.value?.handleSearch()
+  } catch (error) {
+    message.error(error.message || '删除失败')
+  }
+}
+
+// 批量删除日志
+const handleBatchDelete = async () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先选择要删除的日志')
+    return
+  }
+  
+  try {
+    await api.auditLogs.batchDelete(selectedRowKeys.value)
+    message.success('批量删除成功')
+    selectedRowKeys.value = []
+    $table.value?.handleSearch()
+  } catch (error) {
+    message.error(error.message || '批量删除失败')
+  }
+}
+
+// 清空日志
+const handleClear = async () => {
+  try {
+    await api.auditLogs.clear({ days: clearDays.value })
+    message.success('清空成功')
+    showClearModal.value = false
+    $table.value?.handleSearch()
+  } catch (error) {
+    message.error(error.message || '清空失败')
+  }
+}
+
 // 获取统计数据
-async function handleShowStatistics() {
+const handleShowStatistics = async () => {
   isLoading.value = true
   try {
     const response = await api.auditLogs.getStatistics({ days: statisticsDays.value })
@@ -287,9 +369,6 @@ async function handleShowStatistics() {
     // 在弹窗显示后初始化图表
     nextTick(() => {
       initChart()
-      
-      // 监听窗口大小变化
-      window.addEventListener('resize', handleResize)
     })
   } catch (error) {
     message.error(error.message || '获取统计数据失败')
@@ -298,21 +377,18 @@ async function handleShowStatistics() {
   }
 }
 
-// 在弹窗关闭时移除事件监听
-function handleModalClose() {
-  window.removeEventListener('resize', handleResize)
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
-  }
-}
-
 // 监听统计天数变化，更新图表
-function handleStatisticsDaysChange(value) {
+const handleStatisticsDaysChange = (value) => {
   statisticsDays.value = value
   handleShowStatistics()
 }
 
+// 初始化
+onMounted(() => {
+  $table.value?.handleSearch()
+})
+
+// 表格列定义
 const columns = [
   {
     type: 'selection'
@@ -365,12 +441,13 @@ const columns = [
     align: 'center',
     width: 80,
     render: (row) => {
-      let color = 'default'
-      if (row.log_level === 'info') color = 'info'
-      if (row.log_level === 'warning') color = 'warning'
-      if (row.log_level === 'error') color = 'error'
-      
-      return h('span', { style: `color: ${color === 'info' ? '#1890ff' : color === 'warning' ? '#faad14' : color === 'error' ? '#f5222d' : 'inherit'}` }, row.log_level)
+      const colorMap = {
+        'info': '#1890ff',
+        'warning': '#faad14',
+        'error': '#f5222d'
+      }
+      const color = colorMap[row.log_level] || 'inherit'
+      return h('span', { style: `color: ${color}` }, row.log_level)
     }
   },
   {
@@ -567,6 +644,9 @@ const columns = [
             type="datetimerange"
             clearable
             style="width: 380px"
+            format="yyyy-MM-dd HH:mm:ss"
+            value-format="timestamp"
+            :default-time="['00:00:00', '23:59:59']"
             @update:value="handleDateRangeChange"
           />
         </QueryBarItem>
@@ -622,19 +702,16 @@ const columns = [
         <NCard v-if="Object.keys(statisticsData).length > 0">
           <div class="flex justify-around mb-6">
             <NStatistic label="总日志数">
-              {{ Object.values(statisticsData).reduce((sum, value) => sum + value, 0) }}
+              {{ statisticsSummary.total }}
             </NStatistic>
             <NStatistic label="平均每日日志数">
-              {{ Math.round(
-                Object.values(statisticsData).reduce((sum, value) => sum + value, 0) / 
-                Object.keys(statisticsData).length
-              ) }}
+              {{ statisticsSummary.average }}
             </NStatistic>
             <NStatistic label="最高日志数">
-              {{ Math.max(...Object.values(statisticsData)) }}
+              {{ statisticsSummary.max }}
             </NStatistic>
             <NStatistic label="最低日志数">
-              {{ Math.min(...Object.values(statisticsData)) }}
+              {{ statisticsSummary.min }}
             </NStatistic>
           </div>
           

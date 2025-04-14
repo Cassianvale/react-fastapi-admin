@@ -483,7 +483,7 @@ const columns = [
             // 规格信息列表
             ...Object.entries(row.specifications).map(([key, values]) => {
               return h('div', { class: 'spec-tooltip-item' }, [
-                h('span', { class: 'spec-tooltip-key' }, `${key}:`),
+                h('span', { class: 'spec-tooltip-key' }, `${key}：`),
                 h('span', { class: 'spec-tooltip-value' }, 
                   Array.isArray(values) ? values.join('、') : values
                 )

@@ -19,3 +19,4 @@ db.sqlite3-wal
 .env.production
 .env.testing
 .env
+exports/

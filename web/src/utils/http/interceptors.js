@@ -1,7 +1,6 @@
 import { getToken } from '@/utils'
 import { resolveResError } from './helpers'
 import { useUserStore } from '@/store'
-import { router } from '@/router'
 
 export function reqResolve(config) {
   // 处理不需要token的请求
@@ -23,45 +22,71 @@ export function reqReject(error) {
 
 export function resResolve(response) {
   const { data, status, statusText } = response
+  
+  // 非200状态码数据，转换成标准错误对象但不显示消息
   if (data?.code !== 200) {
     const code = data?.code ?? status
-    /** 根据code处理对应的操作，并返回处理后的message */
-    const message = resolveResError(code, data?.msg ?? statusText)
-    window.$message?.error(message, { keepAliveOnHover: true })
-    return Promise.reject({ code, message, error: data || response })
+    
+    // 直接使用后端返回的错误消息，不再通过resolveResError处理
+    const message = data?.msg ?? statusText
+    
+    // 构造标准错误对象，但不自动显示错误消息
+    // 由业务代码决定如何处理这个错误
+    return Promise.reject({
+      code, 
+      message, 
+      error: data || response,
+      // 添加类型标记，表明这是业务错误而非网络错误
+      type: 'business_error'
+    })
   }
+  
   return Promise.resolve(data)
 }
 
 export async function resReject(error) {
+  // 处理网络或请求错误（非业务逻辑错误）
   if (!error || !error.response) {
     const code = error?.code
-    /** 根据code处理对应的操作，并返回处理后的message */
-    const message = resolveResError(code, error.message)
+    const message = error?.message || '网络连接错误'
+    
+    // 网络错误自动显示通知
     window.$message?.error(message)
-    return Promise.reject({ code, message, error })
+    return Promise.reject({ 
+      code, 
+      message, 
+      error,
+      type: 'network_error'
+    })
   }
+  
   const { data, status } = error.response
-  const code = data?.code ?? status
 
-  // 根据错误码跳转到对应的错误页面
-  if (code === 401) {
+  // 处理401认证错误
+  if (data?.code === 401) {
     try {
       const userStore = useUserStore()
       userStore.logout()
+      window.$message?.error('登录已过期，请重新登录')
+      return Promise.reject({
+        code: 401,
+        message: '登录已过期，请重新登录',
+        type: 'auth_error'
+      })
     } catch (error) {
       console.log('resReject error', error)
+      return
     }
-  } else if (code === 403) {
-    router.replace('/403')
-  } else if (code === 404) {
-    router.replace('/404')
-  } else if (code >= 500) {
-    router.replace('/500')
   }
-
-  // 后端返回的response数据
-  const message = resolveResError(code, data?.msg ?? error.message)
-  window.$message?.error(message, { keepAliveOnHover: true })
-  return Promise.reject({ code, message, error: error.response?.data || error.response })
+  
+  // 构造业务错误对象，直接使用后端返回的错误消息
+  const code = data?.code ?? status
+  const message = data?.msg ?? error.message
+  
+  return Promise.reject({
+    code, 
+    message, 
+    error: error.response?.data || error.response,
+    type: 'business_error'
+  })
 }

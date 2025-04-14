@@ -71,12 +71,11 @@ export default function ({ name, initForm = {}, doCreate, doDelete, doUpdate, re
           modalLoading.value = true
           const data = await action.api()
           action.cb()
-          action.msg()
+          if (action.msg) action.msg()
           modalLoading.value = modalVisible.value = false
           data && refresh(data)
-          resolve(data) // 返回API响应数据
+          resolve(data)
         } catch (error) {
-          modalLoading.value = false
           reject(error)
         }
       })
@@ -94,6 +93,9 @@ export default function ({ name, initForm = {}, doCreate, doDelete, doUpdate, re
       refresh(data)
     } catch (error) {
       modalLoading.value = false
+      if (error.message) {
+        $message.error(error.message || '删除失败')
+      }
     }
   }
 
