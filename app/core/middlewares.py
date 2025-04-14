@@ -86,8 +86,21 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
                         except json.JSONDecodeError:
                             args["raw_body"] = body_str[:1000]
                     elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
-                        form = await request.form()
-                        args.update({k: v for k, v in form.items()})
+                        try:
+                            # 对于含有文件上传的请求，只记录文件名称和大小，而不是整个文件对象
+                            form = await request.form()
+                            for k, v in form.items():
+                                # 如果是文件对象，只保存文件信息
+                                if hasattr(v, "filename") and hasattr(v, "size"):
+                                    args[k] = {
+                                        "filename": getattr(v, "filename", "unknown"),
+                                        "content_type": getattr(v, "content_type", "unknown"),
+                                        "size": getattr(v, "size", 0)
+                                    }
+                                else:
+                                    args[k] = str(v)
+                        except Exception as e:
+                            args["form_parse_error"] = str(e)[:200]
                     else:
                         # 其他内容类型，存储有限的原始内容
                         args["raw_body"] = body_bytes.decode("utf-8", errors="replace")[:1000]
@@ -244,6 +257,43 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
         request_args = await self.get_request_args(request)
         request.state.request_args = request_args
 
+    def safe_serialize(self, obj: Any) -> Any:
+        """
+        安全地序列化对象，确保复杂对象可以被JSON序列化
+        
+        Args:
+            obj: 要序列化的对象
+            
+        Returns:
+            转换后可以安全序列化的对象
+        """
+        if obj is None:
+            return None
+            
+        # 处理基本类型
+        if isinstance(obj, (str, int, float, bool)):
+            return obj
+            
+        # 处理列表
+        if isinstance(obj, list):
+            return [self.safe_serialize(item) for item in obj]
+            
+        # 处理字典
+        if isinstance(obj, dict):
+            return {k: self.safe_serialize(v) for k, v in obj.items()}
+            
+        # 处理其他复杂对象
+        try:
+            # 尝试将对象转换为字典
+            if hasattr(obj, "__dict__"):
+                return {"_type": obj.__class__.__name__, **self.safe_serialize(obj.__dict__)}
+                
+            # 尝试将对象转换为字符串
+            return str(obj)
+        except Exception:
+            # 如果无法序列化，返回对象类型名称
+            return f"<Non-serializable object: {obj.__class__.__name__}>"
+            
     async def after_request(self, request: Request, response: Response, process_time: int):
         """请求后处理"""
         # 检查是否需要跳过日志记录
@@ -255,11 +305,13 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
 
         # 添加请求参数
         request_args = getattr(request.state, "request_args", {}) or {}
-        data["request_args"] = request_args
+        # 确保请求参数可以序列化为JSON
+        data["request_args"] = self.safe_serialize(request_args)
         
         # 添加响应体
         response_body = await self.get_response_body(request, response)
-        data["response_body"] = response_body
+        # 确保响应体可以序列化为JSON
+        data["response_body"] = self.safe_serialize(response_body)
         
         # 将数据库操作添加到后台任务
         await BgTasks.add_task(AuditLog.create, **data)

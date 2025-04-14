@@ -143,12 +143,28 @@ const imageList = computed(() => {
   return props.modelValue
 })
 
-// URL转OSS文件Key
+// URL转OSS文件Key或本地存储路径
 const getOssKeyFromUrl = (url) => {
   if (!url) return null
   
   try {
-    // 解析URL以获取路径部分
+    // 检查是否是本地存储的URL (相对路径)
+    if (url.startsWith('/static/')) {
+      // 本地存储路径直接返回，去掉开头的斜杠
+      return url.substring(1)  // 移除开头的'/'，变成'static/uploads/...'
+    }
+    
+    // 检查是否是完整的本地存储URL (带域名)
+    if (url.includes('/static/uploads/')) {
+      // 提取static/uploads及后面的部分
+      const match = url.match(/\/static\/uploads\/.*/)
+      if (match) {
+        // 去掉开头的斜杠
+        return match[0].substring(1)  // 移除开头的'/'
+      }
+    }
+    
+    // 解析URL以获取路径部分 (OSS路径)
     const urlObj = new URL(url)
     // 获取路径部分（去除域名和查询参数）
     let path = urlObj.pathname
@@ -158,7 +174,7 @@ const getOssKeyFromUrl = (url) => {
     }
     return path
   } catch (error) {
-    console.error('解析OSS路径出错:', error)
+    console.error('解析文件路径出错:', error)
     return null
   }
 }
@@ -249,11 +265,11 @@ const confirmDelete = async () => {
   deleteConfirmVisible.value = false
   
   try {
-    // 获取OSS文件路径
+    // 获取文件路径
     const fileKey = getOssKeyFromUrl(url)
     
     if (fileKey) {
-      // 调用API删除OSS文件
+      // 调用API删除文件
       await api.upload.deleteFile(fileKey)
       message.success('图片已删除')
     }

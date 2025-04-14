@@ -1,5 +1,6 @@
 import os
 import uuid
+import shutil
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -34,14 +35,36 @@ class UploadController:
             str: OSS存储路径
         """
         today = datetime.now()
-        year_month = today.strftime("%Y%m")
-        day = today.strftime("%d")
+        date_str = today.strftime("%Y%m%d")  # 使用连续的年月日格式
         
         # 使用os.path.join正确处理路径连接，防止双斜杠问题
         # 注意：OSS使用正斜杠，Windows下os.path.join使用反斜杠，需要转换
-        path = os.path.join(settings.OSS_UPLOAD_DIR, file_type, year_month, day)
+        path = os.path.join(settings.OSS_UPLOAD_DIR, file_type, date_str)
         # 转换为OSS路径格式（使用正斜杠）
         return path.replace('\\', '/')
+    
+    def generate_local_path(self, file_type: str = "common") -> str:
+        """
+        根据文件类型和当前日期生成本地存储路径
+        
+        Args:
+            file_type: 文件类型，用于分类存储，如image、document等
+            
+        Returns:
+            tuple: (本地文件系统路径, URL路径)
+        """
+        today = datetime.now()
+        date_str = today.strftime("%Y%m%d")  # 使用连续的年月日格式
+        
+        # 本地文件系统路径
+        fs_path = os.path.join(settings.LOCAL_STORAGE_PATH, file_type, date_str)
+        # URL路径
+        url_path = os.path.join(settings.LOCAL_STORAGE_URL_PREFIX, file_type, date_str).replace('\\', '/')
+        
+        # 确保目录存在
+        os.makedirs(fs_path, exist_ok=True)
+        
+        return fs_path, url_path
     
     async def check_image_file(self, file: UploadFile) -> bytes:
         """
@@ -105,6 +128,52 @@ class UploadController:
             
         return file_content
     
+    async def upload_to_local(self, file_content: bytes, filename: str, file_type: str = "common") -> str:
+        """
+        上传文件到本地存储
+        
+        Args:
+            file_content: 文件内容
+            filename: 文件名
+            file_type: 文件类型，如image、document等
+        
+        Returns:
+            str: 文件的URL
+        
+        Raises:
+            HTTPException: 上传失败时抛出异常
+        """
+        try:
+            # 获取本地存储路径
+            fs_path, url_path = self.generate_local_path(file_type)
+            
+            # 文件完整路径
+            file_path = os.path.join(fs_path, filename)
+            
+            # 写入文件
+            with open(file_path, 'wb') as f:
+                f.write(file_content)
+            
+            # 返回文件URL
+            if settings.LOCAL_STORAGE_FULL_URL:
+                # 如果配置了完整URL，使用完整URL (去掉前导的/static/uploads)
+                if url_path.startswith(settings.LOCAL_STORAGE_URL_PREFIX):
+                    rel_path = url_path[len(settings.LOCAL_STORAGE_URL_PREFIX):].lstrip('/')
+                    file_url = f"{settings.LOCAL_STORAGE_FULL_URL.rstrip('/')}/{rel_path}/{filename}"
+                else:
+                    file_url = f"{settings.LOCAL_STORAGE_FULL_URL.rstrip('/')}/{url_path.lstrip('/')}/{filename}"
+            else:
+                # 否则使用相对路径
+                file_url = f"{url_path}/{filename}"
+            
+            return file_url
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"上传到本地存储失败: {str(e)}"
+            )
+    
     async def upload_to_oss(self, file_content: bytes, oss_file_name: str, file_type: str = "common") -> str:
         """
         上传文件到阿里云OSS
@@ -120,6 +189,10 @@ class UploadController:
         Raises:
             HTTPException: 上传失败时抛出异常
         """
+        # 如果OSS未启用，使用本地存储
+        if not settings.OSS_ENABLED:
+            return await self.upload_to_local(file_content, oss_file_name, file_type)
+            
         # 初始化OSS客户端
         auth = oss2.Auth(settings.OSS_ACCESS_KEY_ID, settings.OSS_ACCESS_KEY_SECRET)
         bucket = oss2.Bucket(auth, settings.OSS_ENDPOINT, settings.OSS_BUCKET_NAME)
@@ -153,7 +226,7 @@ class UploadController:
     
     async def upload_image(self, file: UploadFile) -> Dict:
         """
-        上传单个图片到OSS
+        上传单个图片到OSS或本地存储
         
         Args:
             file: 上传的图片文件
@@ -164,11 +237,11 @@ class UploadController:
         # 检查文件
         file_content = await self.check_image_file(file)
         
-        # 生成OSS文件名
-        oss_file_name = self.generate_oss_file_name(file.filename)
+        # 生成文件名
+        file_name = self.generate_oss_file_name(file.filename)
         
-        # 上传到OSS，指定文件类型为image
-        file_url = await self.upload_to_oss(file_content, oss_file_name, file_type="image")
+        # 上传文件，根据配置选择OSS或本地存储
+        file_url = await self.upload_to_oss(file_content, file_name, file_type="image")
         
         # 返回结果
         return {
@@ -179,7 +252,7 @@ class UploadController:
     
     async def upload_files(self, files: List[UploadFile]) -> List[Dict]:
         """
-        批量上传文件到OSS
+        批量上传文件到OSS或本地存储
         
         Args:
             files: 上传的文件列表
@@ -207,8 +280,8 @@ class UploadController:
             # 检查文件
             file_content = await self.check_file(file)
             
-            # 生成OSS文件名
-            oss_file_name = self.generate_oss_file_name(file.filename)
+            # 生成文件名
+            file_name = self.generate_oss_file_name(file.filename)
             
             # 根据文件扩展名决定文件类型
             file_extension = self.get_file_extension(file.filename).lower()
@@ -222,8 +295,8 @@ class UploadController:
             elif file_extension in [".mp4", ".avi", ".mov", ".wmv"]:
                 file_type = "video"
             
-            # 上传到OSS
-            file_url = await self.upload_to_oss(file_content, oss_file_name, file_type=file_type)
+            # 上传文件，根据配置选择OSS或本地存储
+            file_url = await self.upload_to_oss(file_content, file_name, file_type=file_type)
             
             result.append({
                 "url": file_url,
@@ -283,16 +356,75 @@ class UploadController:
                 detail=f"获取文件列表失败: {str(e)}"
             )
     
-    async def delete_file(self, file_key: str) -> bool:
+    async def delete_local_file(self, file_path: str) -> bool:
         """
-        删除OSS中的文件
+        删除本地存储中的文件
         
         Args:
-            file_key: 文件的OSS键值
-        
+            file_path: 文件的相对路径或完整URL
+            
         Returns:
             bool: 是否删除成功
         """
+        try:
+            print(f"尝试删除本地文件: {file_path}")
+            
+            # 处理以 'static/uploads/' 开头的路径 (前端传递的格式)
+            if file_path.startswith("static/uploads/"):
+                # 直接构建到本地存储路径，不要再添加"uploads"
+                relative_path = file_path.replace("static/uploads/", "")
+                full_path = os.path.join(settings.LOCAL_STORAGE_PATH, relative_path)
+                
+            # 如果是完整URL，提取相对路径
+            elif settings.LOCAL_STORAGE_FULL_URL and file_path.startswith(settings.LOCAL_STORAGE_FULL_URL):
+                # 从完整URL中提取相对路径
+                relative_path = file_path[len(settings.LOCAL_STORAGE_FULL_URL):].lstrip('/')
+                full_path = os.path.join(settings.LOCAL_STORAGE_PATH, relative_path)
+                
+            # 如果是以URL前缀开头
+            elif file_path.startswith(settings.LOCAL_STORAGE_URL_PREFIX):
+                # 移除URL前缀
+                relative_path = file_path[len(settings.LOCAL_STORAGE_URL_PREFIX):].lstrip('/')
+                # 构建完整路径
+                full_path = os.path.join(settings.LOCAL_STORAGE_PATH, relative_path)
+                
+            else:
+                # 如果路径不以URL前缀开头，假设它是相对于存储根目录的路径
+                full_path = os.path.join(settings.LOCAL_STORAGE_PATH, file_path.lstrip('/'))
+                
+            print(f"解析后的完整路径: {full_path}")
+                
+            # 检查文件是否存在
+            if os.path.isfile(full_path):
+                os.remove(full_path)
+                print(f"文件删除成功: {full_path}")
+                return True
+            
+            # 如果文件不存在，记录错误信息但不抛出异常
+            print(f"文件不存在: {full_path}")
+            return False
+            
+        except Exception as e:
+            print(f"删除本地文件失败: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"删除本地文件失败: {str(e)}"
+            )
+    
+    async def delete_file(self, file_key: str) -> bool:
+        """
+        删除OSS或本地存储中的文件
+        
+        Args:
+            file_key: 文件的OSS键值或本地存储路径
+            
+        Returns:
+            bool: 是否删除成功
+        """
+        # 检查是否为本地存储路径
+        if not settings.OSS_ENABLED or file_key.startswith(settings.LOCAL_STORAGE_URL_PREFIX):
+            return await self.delete_local_file(file_key)
+            
         try:
             # 初始化OSS客户端
             auth = oss2.Auth(settings.OSS_ACCESS_KEY_ID, settings.OSS_ACCESS_KEY_SECRET)

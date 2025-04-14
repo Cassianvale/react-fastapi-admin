@@ -12,13 +12,17 @@ from app.settings.config import settings
 router = APIRouter()
 
 
-@router.post("/image", summary="上传图片到OSS", response_model=FileUploadResp)
+@router.post("/image", summary="上传图片", response_model=FileUploadResp)
 async def upload_image(
     file: UploadFile = File(...),
     current_user: User = Depends(AuthControl.is_authed)
 ):
     """
-    上传单个图片文件到阿里云OSS
+    上传单个图片文件到阿里云OSS或本地存储
+    
+    根据系统配置选择上传目标:
+    - 当OSS_ENABLED=true时，上传到阿里云OSS
+    - 当OSS_ENABLED=false时，上传到本地存储
     
     Args:
         file: 上传的图片文件
@@ -31,13 +35,17 @@ async def upload_image(
     return Success(data=file_info)
 
 
-@router.post("/files", summary="批量上传文件到OSS", response_model=BatchFileUploadResp)
+@router.post("/files", summary="批量上传文件", response_model=BatchFileUploadResp)
 async def upload_files(
     files: List[UploadFile] = File(...),
     current_user: User = Depends(AuthControl.is_authed)
 ):
     """
-    批量上传文件到阿里云OSS
+    批量上传文件到阿里云OSS或本地存储
+    
+    根据系统配置选择上传目标:
+    - 当OSS_ENABLED=true时，上传到阿里云OSS
+    - 当OSS_ENABLED=false时，上传到本地存储
     
     Args:
         files: 上传的文件列表
@@ -71,22 +79,30 @@ async def list_files(
     return Success(data=result)
 
 
-@router.delete("/delete", summary="删除OSS文件", response_model=FileDeleteResp)
+@router.delete("/delete", summary="删除文件", response_model=FileDeleteResp)
 async def delete_file(
-    file_key: str = Query(..., description="文件的OSS键值"),
+    file_key: str = Query(..., description="文件的OSS键值或本地路径"),
     current_user: User = Depends(AuthControl.is_authed)
 ):
     """
-    删除OSS中的文件
+    删除OSS或本地存储中的文件
     
     Args:
-        file_key: 文件的OSS键值
+        file_key: 文件的OSS键值或本地存储路径
         current_user: 当前用户
     
     Returns:
         FileDeleteResp: 包含删除结果的响应
     """
     import os
+    
+    # 检查是否为本地存储路径
+    if not settings.OSS_ENABLED or file_key.startswith(settings.LOCAL_STORAGE_URL_PREFIX) or file_key.startswith("static/"):
+        # 对于本地存储的文件，直接传递给控制器
+        result = await upload_controller.delete_file(file_key)
+        return Success(data=result)
+    
+    # 对于OSS存储的文件，验证路径    
     upload_dir = settings.OSS_UPLOAD_DIR
     normalized_key = os.path.normpath(file_key).replace('\\', '/')
     normalized_dir = os.path.normpath(upload_dir).replace('\\', '/')

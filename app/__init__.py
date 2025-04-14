@@ -89,6 +89,15 @@ def create_app() -> FastAPI:
     # 设置自定义JSON编码器，处理Decimal类型
     setup_json_encoder(app)
     
+    # 添加静态文件挂载
+    from fastapi.staticfiles import StaticFiles
+    
+    # 确保存储目录存在
+    os.makedirs(settings.LOCAL_STORAGE_PATH, exist_ok=True)
+    
+    # 挂载静态文件目录
+    app.mount("/static", StaticFiles(directory=os.path.join(settings.BASE_DIR, "storage")), name="static")
+    
     # 添加根路径处理
     @app.get("/")
     async def root():

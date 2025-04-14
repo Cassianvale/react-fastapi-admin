@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     PASSWORD_REQUIRE_SPECIAL: bool = os.getenv("PASSWORD_REQUIRE_SPECIAL", "true").lower() == "true"  # 是否要求包含特殊字符
     
     # 阿里云OSS配置
+    OSS_ENABLED: bool = os.getenv("OSS_ENABLED", "true").lower() == "true"  # 是否启用OSS存储
     OSS_ACCESS_KEY_ID: str = os.getenv("OSS_ACCESS_KEY_ID", "your_access_key_id")
     OSS_ACCESS_KEY_SECRET: str = os.getenv("OSS_ACCESS_KEY_SECRET", "your_access_key_secret")
     OSS_BUCKET_NAME: str = os.getenv("OSS_BUCKET_NAME", "your_bucket_name")
@@ -58,6 +59,12 @@ class Settings(BaseSettings):
     OSS_BUCKET_DOMAIN: str = os.getenv("OSS_BUCKET_DOMAIN", "")  # 自定义域名，如果有的话
     OSS_UPLOAD_DIR: str = os.getenv("OSS_UPLOAD_DIR", "uploads")  # 上传目录
     OSS_URL_EXPIRE_SECONDS: int = int(os.getenv("OSS_URL_EXPIRE_SECONDS", 60 * 60 * 24))  # 签名URL过期时间（秒）
+    
+    # 本地存储配置
+    LOCAL_STORAGE_PATH: str = os.path.join(BASE_DIR, "storage/uploads")  # 本地存储路径
+    LOCAL_STORAGE_URL_PREFIX: str = "/static/uploads"  # 访问本地存储的URL前缀
+    # 用于前端访问的完整URL，如果设置则优先使用
+    LOCAL_STORAGE_FULL_URL: str = os.getenv("LOCAL_STORAGE_FULL_URL", "")  # 例如: http://localhost:9999/static/uploads
     
     # 数据库配置
     DB_CONNECTION: str = os.getenv("DB_CONNECTION", "sqlite")
