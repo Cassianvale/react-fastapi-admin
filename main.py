@@ -3,6 +3,12 @@ import sys
 import uvicorn
 from uvicorn.config import LOGGING_CONFIG
 
+# 在导入任何应用模块前处理命令行参数
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] in ["development", "production", "testing"]:
+    # 设置环境变量
+    os.environ["APP_ENV"] = sys.argv[1]
+    print(f"正在以 {sys.argv[1]} 环境启动服务...")
+
 def run_server():
     """启动服务器"""
     # 修改默认日志配置
@@ -24,10 +30,4 @@ def run_server():
     )
 
 if __name__ == "__main__":
-    # 处理命令行参数
-    if len(sys.argv) > 1 and sys.argv[1] in ["development", "production", "testing"]:
-        # 设置环境变量，会被app/__init__.py中的load_environment()读取
-        os.environ["APP_ENV"] = sys.argv[1]
-        print(f"正在以 {sys.argv[1]} 环境启动服务...")
-    
     run_server()

@@ -20,21 +20,13 @@ from app.core.dependency import AuthControl  # 导入身份验证控制器
 
 # 加载环境变量
 def load_environment():
-    """根据环境加载不同的.env文件"""
-    # 首先加载默认的.env文件
-    load_dotenv()
+    """加载.env文件中的环境变量"""
+    # 不覆盖已存在的环境变量
+    load_dotenv(override=False)
     
     # 获取当前环境
     app_env = os.getenv("APP_ENV", "development")
     logger.info(f"当前运行环境: {app_env}")
-    
-    # 根据环境加载对应的环境配置文件
-    env_file = f".env.{app_env}"
-    if os.path.exists(env_file):
-        load_dotenv(env_file, override=True)
-        logger.info(f"已加载环境配置文件: {env_file}")
-    else:
-        logger.warning(f"环境配置文件不存在: {env_file}，使用默认.env配置")
 
 # 在导入settings之前加载环境变量
 load_environment()

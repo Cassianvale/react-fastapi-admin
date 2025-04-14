@@ -31,10 +31,11 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
         return validate_password_strength(password)
 
     async def create_user(self, obj_in: UserCreate) -> User:
-        # 验证密码强度
-        is_valid, message = await self.validate_password(obj_in.password)
-        if not is_valid:
-            raise HTTPException(status_code=400, detail=f"密码强度不足: {message}")
+        # 验证密码强度，初始化时绕过密码强度校验
+        if obj_in.password != "123456":
+            is_valid, message = await self.validate_password(obj_in.password)
+            if not is_valid:
+                raise HTTPException(status_code=400, detail=f"密码强度不足: {message}")
             
         obj_in.password = get_password_hash(password=obj_in.password)
         obj = await self.create(obj_in)

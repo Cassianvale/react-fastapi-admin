@@ -19,13 +19,13 @@ class AuthControl:
     _rate_limit_data: Dict[str, Dict[str, int]] = {}
     
     # 从配置文件加载IP白名单
-    _ip_whitelist: Set[str] = set(settings.IP_WHITELIST)
+    _ip_whitelist: Set[str] = set(settings.ip_whitelist)
     
     @classmethod
     async def initialize(cls):
         """初始化身份验证控制器"""
         # 加载白名单
-        cls._ip_whitelist = set(settings.IP_WHITELIST)
+        cls._ip_whitelist = set(settings.ip_whitelist)
         # 清空过期数据
         cls._clear_expired_data()
     

@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     
     # 安全相关配置
     # IP白名单，为空列表则不启用白名单检查
-    IP_WHITELIST: List[str] = os.getenv("IP_WHITELIST", "").split(",") if os.getenv("IP_WHITELIST") else []
+    # 使用字符串类型，在属性方法中进行解析
+    IP_WHITELIST_STR: str = ""
     
     # 请求频率限制配置
     RATE_LIMIT_ENABLED: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"  # 是否启用请求频率限制
@@ -115,6 +116,18 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+
+    def __init__(self, **data):
+        # 从环境变量中获取IP白名单字符串
+        data["IP_WHITELIST_STR"] = os.getenv("IP_WHITELIST", "")
+        super().__init__(**data)
+    
+    @property
+    def ip_whitelist(self) -> List[str]:
+        """获取IP白名单列表"""
+        if not self.IP_WHITELIST_STR:
+            return []
+        return [ip for ip in self.IP_WHITELIST_STR.split(",") if ip]
 
 
 settings = Settings()
