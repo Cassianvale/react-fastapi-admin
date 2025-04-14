@@ -1,5 +1,6 @@
 import os
 import typing
+from typing import List
 
 from pydantic_settings import BaseSettings
 
@@ -26,6 +27,27 @@ class Settings(BaseSettings):
     SECRET_KEY: str = os.getenv("SECRET_KEY", "3488a63e1765035d386f05409663f55c83bfae3b3c61a932744b20ad14244dcf")  # openssl rand -hex 32
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24 * 7))  # 7 day
+    
+    # 安全相关配置
+    # IP白名单，为空列表则不启用白名单检查
+    IP_WHITELIST: List[str] = os.getenv("IP_WHITELIST", "").split(",") if os.getenv("IP_WHITELIST") else []
+    
+    # 请求频率限制配置
+    RATE_LIMIT_ENABLED: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"  # 是否启用请求频率限制
+    RATE_LIMIT_MAX_REQUESTS: int = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", 60))  # 时间窗口内最大请求数
+    RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", 60))  # 时间窗口大小（秒）
+    
+    # JWT令牌相关设置
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", 30))  # 刷新令牌过期时间（天）
+    JWT_AUDIENCE: str = os.getenv("JWT_AUDIENCE", "vue-fastapi-admin")  # 令牌受众
+    JWT_ISSUER: str = os.getenv("JWT_ISSUER", "vue-fastapi-admin")  # 令牌签发者
+    
+    # 密码策略配置
+    PASSWORD_MIN_LENGTH: int = int(os.getenv("PASSWORD_MIN_LENGTH", 8))  # 密码最小长度
+    PASSWORD_REQUIRE_UPPERCASE: bool = os.getenv("PASSWORD_REQUIRE_UPPERCASE", "true").lower() == "true"  # 是否要求包含大写字母
+    PASSWORD_REQUIRE_LOWERCASE: bool = os.getenv("PASSWORD_REQUIRE_LOWERCASE", "true").lower() == "true"  # 是否要求包含小写字母
+    PASSWORD_REQUIRE_DIGITS: bool = os.getenv("PASSWORD_REQUIRE_DIGITS", "true").lower() == "true"  # 是否要求包含数字
+    PASSWORD_REQUIRE_SPECIAL: bool = os.getenv("PASSWORD_REQUIRE_SPECIAL", "true").lower() == "true"  # 是否要求包含特殊字符
     
     # 阿里云OSS配置
     OSS_ACCESS_KEY_ID: str = os.getenv("OSS_ACCESS_KEY_ID", "your_access_key_id")

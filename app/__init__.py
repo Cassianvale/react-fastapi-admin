@@ -16,6 +16,7 @@ from app.core.init_app import (
 )
 from app.log import logger
 from app.core.config import setup_json_encoder  # 导入JSON编码器设置函数
+from app.core.dependency import AuthControl  # 导入身份验证控制器
 
 # 加载环境变量
 def load_environment():
@@ -51,6 +52,10 @@ async def lifespan(app: FastAPI):
     logger.info("正在初始化应用...")
     
     try:
+        # 初始化身份验证控制器
+        await AuthControl.initialize()
+        logger.info("身份验证控制器初始化完成")
+        
         # 使用shield保护初始化过程
         await asyncio.shield(init_data())
         logger.info("数据初始化完成")

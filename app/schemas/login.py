@@ -10,7 +10,9 @@ class CredentialsSchema(BaseModel):
 
 class JWTOut(BaseModel):
     access_token: str
+    refresh_token: str = ""  # 刷新令牌，可选
     username: str
+    token_type: str = "bearer"  # 令牌类型
 
 
 class JWTPayload(BaseModel):
