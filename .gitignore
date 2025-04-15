@@ -20,3 +20,4 @@ db.sqlite3-wal
 .env.testing
 .env
 exports/
+storage/
