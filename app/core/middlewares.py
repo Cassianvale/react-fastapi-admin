@@ -80,7 +80,13 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
                         try:
                             body = json.loads(body_str)
                             if isinstance(body, dict):
-                                args.update(body)
+                                for k, v in body.items():
+                                    if hasattr(v, "filename"):  # 文件上传行为
+                                        args[k] = v.filename
+                                    elif isinstance(v, list) and v and hasattr(v[0], "filename"):
+                                        args[k] = [file.filename for file in v]
+                                    else:
+                                        args[k] = v
                             else:
                                 args["body"] = body
                         except json.JSONDecodeError:
