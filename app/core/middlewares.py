@@ -226,7 +226,7 @@ class HttpAuditLogMiddleware(BaseHTTPMiddleware):
         try:
             token = request.headers.get("token")
             if token:
-                user_obj = await AuthControl.is_authed(token)
+                user_obj = await AuthControl.is_authed(request, token)
                 if user_obj:
                     data["user_id"] = user_obj.id
                     data["username"] = user_obj.username
