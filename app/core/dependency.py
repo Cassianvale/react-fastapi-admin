@@ -4,7 +4,6 @@ from datetime import datetime
 
 import jwt
 from fastapi import Depends, Header, HTTPException, Request, Query
-from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN, HTTP_429_TOO_MANY_REQUESTS
 
 from app.core.ctx import CTX_USER_ID
 from app.core.exceptions import AuthenticationError, AuthorizationError, RateLimitError

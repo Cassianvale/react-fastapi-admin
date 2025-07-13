@@ -110,3 +110,25 @@ class ValidationError(CustomHTTPException):
 
     def __init__(self, detail: str = "数据验证失败", data: Optional[Dict[str, Any]] = None):
         super().__init__(status_code=422, detail=detail, data=data)
+
+
+# CRUD 操作相关异常
+class RecordNotFoundError(CustomHTTPException):
+    """记录不存在错误"""
+
+    def __init__(self, detail: str = "记录不存在", data: Optional[Dict[str, Any]] = None):
+        super().__init__(status_code=404, detail=detail, data=data)
+
+
+class RecordAlreadyExistsError(CustomHTTPException):
+    """记录已存在错误"""
+
+    def __init__(self, detail: str = "记录已存在", data: Optional[Dict[str, Any]] = None):
+        super().__init__(status_code=409, detail=detail, data=data)
+
+
+class InvalidParameterError(CustomHTTPException):
+    """参数错误"""
+
+    def __init__(self, detail: str = "参数无效", data: Optional[Dict[str, Any]] = None):
+        super().__init__(status_code=400, detail=detail, data=data)
