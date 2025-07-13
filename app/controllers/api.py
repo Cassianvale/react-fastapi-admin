@@ -1,7 +1,7 @@
 from fastapi.routing import APIRoute
 
 from app.core.crud import CRUDBase
-from app.log import logger
+from app.utils.log_control import logger
 from app.models.admin import Api
 from app.schemas.apis import ApiCreate, ApiUpdate
 

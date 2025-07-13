@@ -11,25 +11,14 @@ from tortoise import Tortoise
 from app.api import api_router
 from app.controllers.api import api_controller
 from app.controllers.user import UserCreate, user_controller
-from app.core.exceptions import (
-    DoesNotExist,
-    DoesNotExistHandle,
-    HTTPException,
-    HttpExcHandle,
-    IntegrityError,
-    IntegrityHandle,
-    RequestValidationError,
-    RequestValidationHandle,
-    ResponseValidationError,
-    ResponseValidationHandle,
-    ValueErrorHandle,
-)
-from app.log import logger
+from app.core.exceptions import exception_handlers
+from app.utils.log_control import logger
 from app.models.admin import Api, Menu, Role
 from app.schemas.menus import MenuType
 from app.settings.config import settings
 
 from .middlewares import BackGroundTaskMiddleware, HttpAuditLogMiddleware
+from app.utils.log_control import AccessLogMiddleware
 
 
 def make_middlewares():
@@ -42,6 +31,18 @@ def make_middlewares():
             allow_headers=settings.CORS_ALLOW_HEADERS,
         ),
         Middleware(BackGroundTaskMiddleware),
+    ]
+
+    # 根据设置决定是否启用访问日志中间件
+    if settings.LOG_ENABLE_ACCESS_LOG:
+        middleware.append(
+            Middleware(
+                AccessLogMiddleware,
+                skip_paths=["/docs", "/redoc", "/openapi.json", "/favicon.ico", "/static/", "/health"],
+            )
+        )
+
+    middleware.append(
         Middleware(
             HttpAuditLogMiddleware,
             methods=["GET", "POST", "PUT", "DELETE"],
@@ -58,18 +59,16 @@ def make_middlewares():
                 "/api/v1/auditlog/download",
                 "/api/v1/auditlog/statistics",
             ],
-        ),
-    ]
+        )
+    )
+
     return middleware
 
 
 def register_exceptions(app: FastAPI):
-    app.add_exception_handler(DoesNotExist, DoesNotExistHandle)
-    app.add_exception_handler(HTTPException, HttpExcHandle)
-    app.add_exception_handler(IntegrityError, IntegrityHandle)
-    app.add_exception_handler(RequestValidationError, RequestValidationHandle)
-    app.add_exception_handler(ResponseValidationError, ResponseValidationHandle)
-    app.add_exception_handler(ValueError, ValueErrorHandle)
+    """注册异常处理器"""
+    for exception_type, handler in exception_handlers.items():
+        app.add_exception_handler(exception_type, handler)
 
 
 def register_routers(app: FastAPI, prefix: str = "/api"):
@@ -174,7 +173,7 @@ async def init_menus():
             ),
         ]
         await Menu.bulk_create(children_menu)
-        
+
         # 添加商品管理菜单
         product_menu = await Menu.create(
             menu_type=MenuType.CATALOG,
@@ -188,7 +187,7 @@ async def init_menus():
             keepalive=False,
             redirect="/product/category",
         )
-        
+
         # 添加商品管理的子菜单
         product_children = [
             Menu(
@@ -224,11 +223,11 @@ async def init_apis():
 
 
 async def init_db():
-    command = Command(tortoise_config=settings.TORTOISE_ORM)
+    command = Command(tortoise_config=settings.tortoise_orm)
     # 确保Tortoise已初始化
     if not Tortoise._inited:
-        await Tortoise.init(config=settings.TORTOISE_ORM)
-    
+        await Tortoise.init(config=settings.tortoise_orm)
+
     try:
         # 使用shield保护数据库操作
         await asyncio.shield(command.init_db(safe=True))

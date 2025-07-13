@@ -14,19 +14,35 @@ class BaseUser(BaseModel):
     updated_at: Optional[datetime]
     last_login: Optional[datetime]
     roles: Optional[list] = []
-    
+
+    class Config:
+        from_attributes = True
+
+
+class UserOut(BaseModel):
+    """用户输出模型，用于API响应"""
+
+    id: int
+    username: str
+    email: EmailStr
+    is_active: bool
+    is_superuser: bool
+    created_at: datetime
+    updated_at: datetime
+    last_login: Optional[datetime] = None
+
     class Config:
         from_attributes = True
 
 
 class UserCreate(BaseModel):
-    email: EmailStr = Field(example="admin@qq.com", description="邮箱")
-    username: str = Field(example="admin", description="用户名")
-    password: str = Field(example="123456", description="密码")
+    email: EmailStr = Field(description="邮箱")
+    username: str = Field(description="用户名")
+    password: str = Field(description="密码")
     is_active: Optional[bool] = True
     is_superuser: Optional[bool] = False
     role_ids: Optional[List[int]] = []
-    dept_id: Optional[int] = Field(0, description="部门ID")
+    dept_id: Optional[int] = Field(default=0, description="部门ID")
 
     def create_dict(self):
         return self.model_dump(exclude_unset=True, exclude={"role_ids"})

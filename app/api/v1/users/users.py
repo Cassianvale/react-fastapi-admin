@@ -5,6 +5,9 @@ from tortoise.expressions import Q
 
 from app.controllers.dept import dept_controller
 from app.controllers.user import user_controller
+from app.core.ctx import CTX_USER_ID
+from app.core.dependency import DependAuth
+from app.core.exceptions import AuthenticationError, ValidationError
 from app.schemas.base import Fail, Success, SuccessExtra
 from app.schemas.users import *
 
@@ -21,6 +24,19 @@ async def list_user(
     email: str = Query("", description="邮箱地址"),
     dept_id: int = Query(None, description="部门ID"),
 ):
+    """
+    获取用户列表
+
+    Args:
+        page: 页码
+        page_size: 每页数量
+        username: 用户名称搜索
+        email: 邮箱地址搜索
+        dept_id: 部门ID搜索
+
+    Returns:
+        用户列表和分页信息
+    """
     q = Q()
     if username:
         q &= Q(username__contains=username)
@@ -28,11 +44,17 @@ async def list_user(
         q &= Q(email__contains=email)
     if dept_id is not None:
         q &= Q(dept_id=dept_id)
+
     total, user_objs = await user_controller.list(page=page, page_size=page_size, search=q)
     data = [await obj.to_dict(m2m=True, exclude_fields=["password"]) for obj in user_objs]
+
     for item in data:
         dept_id = item.pop("dept_id", None)
-        item["dept"] = await (await dept_controller.get(id=dept_id)).to_dict() if dept_id else {}
+        if dept_id:
+            dept_obj = await dept_controller.get(id=dept_id)
+            item["dept"] = await dept_obj.to_dict() if dept_obj else {}
+        else:
+            item["dept"] = {}
 
     return SuccessExtra(data=data, total=total, page=page, page_size=page_size)
 
@@ -41,7 +63,22 @@ async def list_user(
 async def get_user(
     user_id: int = Query(..., description="用户ID"),
 ):
+    """
+    获取指定用户信息
+
+    Args:
+        user_id: 用户ID
+
+    Returns:
+        用户信息
+
+    Raises:
+        AuthenticationError: 当用户不存在时抛出
+    """
     user_obj = await user_controller.get(id=user_id)
+    if not user_obj:
+        raise AuthenticationError("用户不存在")
+
     user_dict = await user_obj.to_dict(exclude_fields=["password"])
     return Success(data=user_dict)
 
@@ -50,32 +87,110 @@ async def get_user(
 async def create_user(
     user_in: UserCreate,
 ):
+    """
+    创建新用户
+
+    Args:
+        user_in: 用户创建信息
+
+    Returns:
+        创建结果
+
+    Raises:
+        ValidationError: 当用户邮箱已存在时抛出
+    """
     user = await user_controller.get_by_email(user_in.email)
     if user:
-        return Fail(code=400, msg="The user with this email already exists in the system.")
+        raise ValidationError("该邮箱地址已被使用")
+
     new_user = await user_controller.create_user(obj_in=user_in)
-    await user_controller.update_roles(new_user, user_in.role_ids)
-    return Success(msg="Created Successfully")
+    if not new_user:
+        raise ValidationError("用户创建失败")
+
+    # 处理角色关联
+    if user_in.role_ids:
+        await user_controller.update_roles(new_user, user_in.role_ids)
+
+    return Success(msg="创建成功")
 
 
 @router.post("/update", summary="更新用户")
 async def update_user(
     user_in: UserUpdate,
 ):
+    """
+    更新用户信息
+
+    Args:
+        user_in: 用户更新信息
+
+    Returns:
+        更新结果
+
+    Raises:
+        AuthenticationError: 当用户不存在时抛出
+    """
     user = await user_controller.update(id=user_in.id, obj_in=user_in)
-    await user_controller.update_roles(user, user_in.role_ids)
-    return Success(msg="Updated Successfully")
+    if not user:
+        raise AuthenticationError("用户更新失败或用户不存在")
+
+    # 处理角色关联
+    if user_in.role_ids:
+        await user_controller.update_roles(user, user_in.role_ids)
+
+    return Success(msg="更新成功")
 
 
-@router.delete("/delete", summary="删除用户")
+@router.delete("/delete", summary="删除用户", dependencies=[DependAuth])
 async def delete_user(
     user_id: int = Query(..., description="用户ID"),
 ):
+    """
+    删除指定用户
+
+    Args:
+        user_id: 用户ID
+
+    Returns:
+        删除结果
+
+    Raises:
+        ValidationError: 当用户尝试删除自己的账户时抛出
+        AuthenticationError: 当用户不存在时抛出
+    """
+    # 获取当前用户ID
+    current_user_id = CTX_USER_ID.get()
+
+    # 检查用户是否尝试删除自己的账户
+    if current_user_id == user_id:
+        raise ValidationError("不能删除自己的账户")
+
+    # 检查要删除的用户是否存在
+    user_to_delete = await user_controller.get(id=user_id)
+    if not user_to_delete:
+        raise AuthenticationError("要删除的用户不存在")
+
+    # 额外的安全检查：防止删除超级管理员账户（如果有需要）
+    if user_to_delete.is_superuser:
+        # 检查是否还有其他超级管理员
+        superuser_count = await user_controller.model.filter(is_superuser=True).count()
+        if superuser_count <= 1:
+            raise ValidationError("不能删除最后一个超级管理员账户")
+
     await user_controller.remove(id=user_id)
-    return Success(msg="Deleted Successfully")
+    return Success(msg="删除成功")
 
 
 @router.post("/reset_password", summary="重置密码")
 async def reset_password(user_id: int = Body(..., description="用户ID", embed=True)):
+    """
+    重置用户密码
+
+    Args:
+        user_id: 用户ID
+
+    Returns:
+        重置结果
+    """
     await user_controller.reset_password(user_id)
     return Success(msg="密码已重置为123456")

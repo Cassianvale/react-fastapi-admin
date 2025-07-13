@@ -6,18 +6,33 @@
 
 <h1 align="center">vue-fastapi-admin</h1>
 
-[English](./README-en.md) | 简体中文
+<p align="center">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-blue">
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-blue">
+</p>
 
-基于 FastAPI + Vue3 + Naive UI 的现代化前后端分离开发平台，融合了 RBAC 权限管理、动态路由和 JWT 鉴权，助力中小型应用快速搭建，也可用于学习参考。
+基于 FastAPI + Vue3 + Naive UI 的现代化前后端分离开发平台，采用 Granian 高性能服务器、Tortoise ORM 异步数据库、Aerich 数据库迁移和 Loguru 智能日志系统，融合了 RBAC 权限管理、动态路由和 JWT 鉴权，助力中小型应用快速搭建，也可用于学习参考。
 
 ### 特性
-- **最流行技术栈**：基于 Python 3.11 和 FastAPI 高性能异步框架，结合 Vue3 和 Vite 等前沿技术进行开发，同时使用高效的 npm 包管理器 pnpm。
+
+- **现代化技术栈**：
+  - **后端框架**：基于 Python 3.11 和 FastAPI 高性能异步框架
+  - **数据库 ORM**：使用 Tortoise ORM 异步数据库，配合 Aerich 进行数据库迁移管理
+  - **ASGI 服务器**：采用 Granian 高性能 ASGI 服务器，支持热重载和优化的生产环境部署
+  - **日志系统**：集成 Loguru 现代化日志库，提供结构化日志记录和丰富的日志管理功能
+  - **前端技术**：Vue3 + Vite + Naive UI + Pinia，配合高效的包管理器 pnpm
+- **企业级特性**：
+  - **数据库迁移**：使用 Aerich 实现版本化数据库迁移，支持多种数据库（SQLite、MySQL、PostgreSQL）
+  - **智能日志**：基于 Loguru 的多级日志系统，支持日志轮转、压缩和结构化输出
+  - **高性能服务**：Granian 服务器提供优异的并发性能和内存效率
 - **代码规范**：项目内置丰富的规范插件，确保代码质量和一致性，有效提高团队协作效率。
 - **动态路由**：后端动态路由，结合 RBAC（Role-Based Access Control）权限模型，提供精细的菜单路由控制。
-- **JWT鉴权**：使用 JSON Web Token（JWT）进行身份验证和授权，增强应用的安全性。
+- **JWT 鉴权**：使用 JSON Web Token（JWT）进行身份验证和授权，增强应用的安全性。
 - **细粒度权限控制**：实现按钮和接口级别的权限控制，确保不同用户或角色在界面操作和接口访问时具有不同的权限限制。
+- **完整审计日志**：记录所有用户操作和系统活动，提供完整的操作追踪和审计功能。
 
 ### 在线预览
+
 - http://vue-fastapi-admin.com
 - username: admin
 - password: 123456
@@ -25,6 +40,7 @@
 ### 登录页
 
 ![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/login.jpg)
+
 ### 工作台
 
 ![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/workbench.jpg)
@@ -32,6 +48,7 @@
 ### 用户管理
 
 ![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/user.jpg)
+
 ### 角色管理
 
 ![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/role.jpg)
@@ -40,20 +57,22 @@
 
 ![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/menu.jpg)
 
-### API管理
+### API 管理
 
 ![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/api.jpg)
 
 ### 快速开始
-#### 方法一：dockerhub拉取镜像
+
+#### 方法一：dockerhub 拉取镜像
 
 ```sh
-docker pull mizhexiaoxiao/vue-fastapi-admin:latest 
+docker pull mizhexiaoxiao/vue-fastapi-admin:latest
 docker run -d --restart=always --name=vue-fastapi-admin -p 9999:80 mizhexiaoxiao/vue-fastapi-admin
 ```
 
-#### 方法二：dockerfile构建镜像
-##### docker安装(版本17.05+)
+#### 方法二：dockerfile 构建镜像
+
+##### docker 安装(版本 17.05+)
 
 ```sh
 yum install -y docker-ce
@@ -83,17 +102,23 @@ username：admin
 password：123456
 
 ### 本地启动
+
 #### 后端
+
 启动项目需要以下环境：
+
 - Python 3.11
 
 #### 方法一（推荐）：使用 uv 安装依赖
+
 1. 安装 uv
+
 ```sh
 pip install uv
 ```
 
 2. 创建并激活虚拟环境
+
 ```sh
 uv venv
 source .venv/bin/activate  # Linux/Mac
@@ -102,104 +127,68 @@ source .venv/bin/activate  # Linux/Mac
 ```
 
 3. 安装依赖
+
 ```sh
 uv add pyproject.toml
 ```
 
-4. 启动服务
+4. 数据库迁移（可选）
+
 ```sh
-# 以开发环境启动
-python main.py development
+# 生成迁移文件
+aerich migrate
 
-# 以生产环境启动
-python main.py production
-
-# 以测试环境启动
-python main.py testing
+# 应用迁移
+aerich upgrade
 ```
 
-服务现在应该正在运行，访问 http://localhost:9999/docs 查看API文档
+5. 启动服务
 
+```sh
+# 直接启动（使用 Granian 服务器）
+python main.py
+
+# 或者使用 Make 命令
+make start
+```
+
+服务现在应该正在运行，访问 http://localhost:9999/docs 查看 API 文档
+
+#### 方法二：使用 pip 安装依赖
+
+```sh
+pip install -r requirements.in
+python main.py
+```
+
+#### 技术栈说明
+
+- **Granian 服务器**：项目使用 Granian 作为 ASGI 服务器，提供高性能的异步处理能力
+- **Tortoise ORM**：异步数据库 ORM，支持 SQLite、MySQL、PostgreSQL
+- **Aerich**：数据库迁移工具，类似 Django 的 migrations
+- **Loguru**：现代化日志库，提供结构化日志和丰富的配置选项
 
 #### 前端
+
 启动项目需要以下环境：
+
 - node v18.8.0+
 
 1. 进入前端目录
+
 ```sh
 cd web
 ```
 
-2. 安装依赖(建议使用pnpm: https://pnpm.io/zh/installation)
+2. 安装依赖(建议使用 pnpm: https://pnpm.io/zh/installation)
+
 ```sh
 npm i -g pnpm # 已安装可忽略
 pnpm i # 或者 npm i
 ```
 
 3. 启动
+
 ```sh
 pnpm dev
-```
-
-### 目录说明
-
-```
-├── app                   // 应用程序目录
-│   ├── api               // API接口目录
-│   │   └── v1            // 版本1的API接口
-│   │       ├── apis      // API相关接口
-│   │       ├── base      // 基础信息接口
-│   │       ├── menus     // 菜单相关接口
-│   │       ├── roles     // 角色相关接口
-│   │       └── users     // 用户相关接口
-│   ├── controllers       // 控制器目录
-│   ├── core              // 核心功能模块
-│   ├── log               // 日志目录
-│   ├── models            // 数据模型目录
-│   ├── schemas           // 数据模式/结构定义
-│   ├── settings          // 配置设置目录
-│   └── utils             // 工具类目录
-├── deploy                // 部署相关目录
-│   └── sample-picture    // 示例图片目录
-└── web                   // 前端网页目录
-    ├── build             // 构建脚本和配置目录
-    │   ├── config        // 构建配置
-    │   ├── plugin        // 构建插件
-    │   └── script        // 构建脚本
-    ├── public            // 公共资源目录
-    │   └── resource      // 公共资源文件
-    ├── settings          // 前端项目配置
-    └── src               // 源代码目录
-        ├── api           // API接口定义
-        ├── assets        // 静态资源目录
-        │   ├── images    // 图片资源
-        │   ├── js        // JavaScript文件
-        │   └── svg       // SVG矢量图文件
-        ├── components    // 组件目录
-        │   ├── common    // 通用组件
-        │   ├── icon      // 图标组件
-        │   ├── page      // 页面组件
-        │   ├── query-bar // 查询栏组件
-        │   └── table     // 表格组件
-        ├── composables   // 可组合式功能块
-        ├── directives    // 指令目录
-        ├── layout        // 布局目录
-        │   └── components // 布局组件
-        ├── router        // 路由目录
-        │   ├── guard     // 路由守卫
-        │   └── routes    // 路由定义
-        ├── store         // 状态管理(pinia)
-        │   └── modules   // 状态模块
-        ├── styles        // 样式文件目录
-        ├── utils         // 工具类目录
-        │   ├── auth      // 认证相关工具
-        │   ├── common    // 通用工具
-        │   ├── http      // 封装axios
-        │   └── storage   // 封装localStorage和sessionStorage
-        └── views         // 视图/页面目录
-            ├── error-page // 错误页面
-            ├── login      // 登录页面
-            ├── profile    // 个人资料页面
-            ├── system     // 系统管理页面
-            └── workbench  // 工作台页面
 ```

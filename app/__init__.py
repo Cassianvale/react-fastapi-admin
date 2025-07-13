@@ -14,19 +14,20 @@ from app.core.init_app import (
     register_exceptions,
     register_routers,
 )
-from app.log import logger
-from app.core.config import setup_json_encoder  # 导入JSON编码器设置函数
+from app.utils.log_control import logger, init_logging
 from app.core.dependency import AuthControl  # 导入身份验证控制器
+
 
 # 加载环境变量
 def load_environment():
     """加载.env文件中的环境变量"""
     # 不覆盖已存在的环境变量
     load_dotenv(override=False)
-    
+
     # 获取当前环境
     app_env = os.getenv("APP_ENV", "development")
     logger.info(f"当前运行环境: {app_env}")
+
 
 # 在导入settings之前加载环境变量
 load_environment()
@@ -34,27 +35,29 @@ load_environment()
 try:
     from app.settings.config import settings
 except ImportError:
-    raise SettingNotFound("Can not import settings")
+    raise SettingNotFound
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理器，对热重载友好"""
     # 启动阶段
+    # 首先初始化日志系统
+    init_logging()
     logger.info("正在初始化应用...")
-    
+
     try:
         # 初始化身份验证控制器
         await AuthControl.initialize()
         logger.info("身份验证控制器初始化完成")
-        
+
         # 使用shield保护初始化过程
         await asyncio.shield(init_data())
         logger.info("数据初始化完成")
 
     except Exception as e:
         logger.error(f"数据初始化出现问题: {str(e)}")
-    
+
     # 运行阶段
     try:
         yield
@@ -64,7 +67,7 @@ async def lifespan(app: FastAPI):
     finally:
         # 关闭阶段
         logger.info("应用正在关闭...")
-        
+
         # 确保数据库连接正确关闭
         if Tortoise._inited:
             try:
@@ -85,26 +88,23 @@ def create_app() -> FastAPI:
     )
     register_exceptions(app)
     register_routers(app, prefix="/api")
-    
-    # 设置自定义JSON编码器，处理Decimal类型
-    setup_json_encoder(app)
-    
+
     # 添加静态文件挂载
     from fastapi.staticfiles import StaticFiles
-    
+
     # 确保存储目录存在
-    os.makedirs(settings.LOCAL_STORAGE_PATH, exist_ok=True)
-    
+    os.makedirs(settings.local_storage_path, exist_ok=True)
+
     # 挂载静态文件目录
     app.mount("/static", StaticFiles(directory=os.path.join(settings.BASE_DIR, "storage")), name="static")
-    
+
     # 添加根路径处理
     @app.get("/")
     async def root():
         """根路径处理器，提供API信息或重定向到文档"""
         # 重定向到API文档
         return RedirectResponse(url="/docs")
-    
+
     return app
 
 
