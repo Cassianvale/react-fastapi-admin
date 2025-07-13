@@ -174,47 +174,6 @@ async def init_menus():
         ]
         await Menu.bulk_create(children_menu)
 
-        # 添加商品管理菜单
-        product_menu = await Menu.create(
-            menu_type=MenuType.CATALOG,
-            name="商品管理",
-            path="/product",
-            order=3,
-            parent_id=0,
-            icon="mdi:shopping",
-            is_hidden=False,
-            component="Layout",
-            keepalive=False,
-            redirect="/product/category",
-        )
-
-        # 添加商品管理的子菜单
-        product_children = [
-            Menu(
-                menu_type=MenuType.MENU,
-                name="商品分类",
-                path="category",
-                order=1,
-                parent_id=product_menu.id,
-                icon="material-symbols:category",
-                is_hidden=False,
-                component="/product/category",
-                keepalive=False,
-            ),
-            Menu(
-                menu_type=MenuType.MENU,
-                name="商品列表",
-                path="products",
-                order=2,
-                parent_id=product_menu.id,
-                icon="mdi:package-variant-closed",
-                is_hidden=False,
-                component="/product/products",
-                keepalive=False,
-            ),
-        ]
-        await Menu.bulk_create(product_children)
-
 
 async def init_apis():
     apis = await api_controller.model.exists()

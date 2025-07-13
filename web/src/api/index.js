@@ -9,7 +9,7 @@ export default {
     getUserApi: () => request.get('/base/userapi'),
     updatePassword: (data = {}) => request.post('/base/update_password', data),
   },
-  
+
   // 用户管理
   users: {
     getList: (params = {}) => request.get('/user/list', { params }),
@@ -19,7 +19,7 @@ export default {
     delete: (data) => request.delete(`/user/delete`, { params: data }),
     resetPassword: (data = {}) => request.post(`/user/reset_password`, data),
   },
-  
+
   // 角色管理
   roles: {
     getList: (params = {}) => request.get('/role/list', { params }),
@@ -29,7 +29,7 @@ export default {
     updateAuthorized: (data = {}) => request.post('/role/authorized', data),
     getAuthorized: (roleId) => request.get('/role/authorized', { params: { id: roleId } }),
   },
-  
+
   // 菜单管理
   menus: {
     getList: (params = {}) => request.get('/menu/list', { params }),
@@ -37,7 +37,7 @@ export default {
     update: (data = {}) => request.post('/menu/update', data),
     delete: (data) => request.delete('/menu/delete', { params: data }),
   },
-  
+
   // API管理
   apis: {
     getList: (params = {}) => request.get('/api/list', { params }),
@@ -46,7 +46,7 @@ export default {
     delete: (data) => request.delete('/api/delete', { params: data }),
     refresh: () => request.post('/api/refresh'),
   },
-  
+
   // 部门管理
   departments: {
     getList: (params = {}) => request.get('/dept/list', { params }),
@@ -55,7 +55,7 @@ export default {
     update: (data = {}) => request.post('/dept/update', data),
     delete: (data) => request.delete('/dept/delete', { params: data }),
   },
-  
+
   // 审计日志
   auditLogs: {
     getList: (params = {}) => request.get('/auditlog/list', { params }),
@@ -65,26 +65,9 @@ export default {
     export: (data = {}) => request.post('/auditlog/export', data),
     getStatistics: (params = {}) => request.get('/auditlog/statistics', { params }),
   },
-  
-  // 商品分类
-  categories: {
-    getList: (params = {}) => request.get('/product/categories', { params }),
-    getById: (id) => request.get(`/product/categories/${id}`),
-    create: (data = {}) => request.post('/product/categories', data),
-    update: (id, data = {}) => request.put(`/product/categories/${id}`, data),
-    delete: (id) => request.delete(`/product/categories/${id}`),
-  },
-  
-  // 商品管理
-  products: {
-    getList: (params = {}) => request.get('/product/products', { params }),
-    getById: (id) => request.get(`/product/products/${id}`),
-    create: (data = {}) => request.post('/product/products', data),
-    update: (id, data = {}) => request.put(`/product/products/${id}`, data),
-    delete: (id) => request.delete(`/product/products/${id}`),
-    updateStatus: (id, status) => request.put(`/product/products/${id}/status`, { status }),
-  },
-  
+
+
+
   // 文件上传
   upload: {
     // 上传单张图片
