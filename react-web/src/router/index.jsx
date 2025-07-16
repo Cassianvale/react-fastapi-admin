@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import Dashboard from '@/pages/Dashboard'
+import Profile from '@/pages/Profile'
 import AppLayout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import LoginRedirect from '@/components/LoginRedirect'
@@ -62,7 +63,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'profile',
-        element: <div>个人中心页面</div>,
+        element: <Profile />,
       },
     ],
   },

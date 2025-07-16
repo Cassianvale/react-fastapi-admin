@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { Form, Input, Button, Card, App } from 'antd'
+import { Form, Input, Button, Card } from 'antd'
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import api from '@/api'
+import { useErrorHandler } from '@/hooks/useErrorHandler'
 
 const Login = () => {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-  const { message } = App.useApp()
+  const { handleBusinessError, showSuccess } = useErrorHandler()
 
   const onFinish = async (values) => {
     setLoading(true)
@@ -24,10 +25,10 @@ const Login = () => {
       const userInfo = await api.auth.getUserInfo()
       localStorage.setItem('userInfo', JSON.stringify(userInfo.data))
 
-      message.success('登录成功！')
+      showSuccess('登录成功！')
       navigate('/dashboard')
     } catch (error) {
-      message.error(error?.response?.data?.message || '登录失败，请检查用户名和密码')
+      handleBusinessError(error, '登录失败，请检查用户名和密码')
     } finally {
       setLoading(false)
     }

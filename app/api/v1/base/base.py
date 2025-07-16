@@ -11,7 +11,7 @@ from app.core.exceptions import AuthenticationError, ValidationError
 from app.models.admin import Api, Menu, Role, User
 from app.schemas.base import Fail, Success
 from app.schemas.login import *
-from app.schemas.users import UpdatePassword
+from app.schemas.users import UpdatePassword, ProfileUpdate
 from app.settings import settings
 from app.utils.jwt_utils import create_access_token, create_refresh_token
 from app.utils.password import get_password_hash, verify_password
@@ -293,6 +293,46 @@ async def update_user_password(req_in: UpdatePassword):
     await user.save()
 
     return Success(msg="修改成功")
+
+
+@router.post("/update_profile", summary="更新个人信息", dependencies=[DependAuth])
+async def update_user_profile(req_in: ProfileUpdate):
+    """
+    更新当前用户的个人信息
+
+    Args:
+        req_in: 包含要更新的个人信息
+
+    Returns:
+        操作结果
+
+    Raises:
+        AuthenticationError: 当用户不存在时抛出
+        ValidationError: 当邮箱已被使用时抛出
+    """
+    user_id = CTX_USER_ID.get()
+    if not user_id:
+        raise AuthenticationError("用户ID不存在")
+
+    user = await user_controller.get(user_id)
+    if not user:
+        raise AuthenticationError("用户不存在")
+
+    # 检查邮箱是否已被其他用户使用
+    if req_in.email and req_in.email != user.email:
+        existing_user = await user_controller.get_by_email(req_in.email)
+        if existing_user and existing_user.id != user_id:
+            raise ValidationError("该邮箱地址已被其他用户使用")
+
+    # 更新用户信息
+    update_data = req_in.update_dict()
+    if update_data:
+        for key, value in update_data.items():
+            if hasattr(user, key) and value is not None:
+                setattr(user, key, value)
+        await user.save()
+
+    return Success(msg="个人信息更新成功")
 
 
 @router.post("/logout", summary="用户注销", dependencies=[DependAuth])

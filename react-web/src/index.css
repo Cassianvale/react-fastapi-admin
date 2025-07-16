@@ -50,8 +50,60 @@ body {
   background: #ffffff !important;
 }
 
-.ant-menu {
+/* 自定义Tabs样式 */
+.custom-tabs {
+  margin-bottom: 0 !important;
+}
+
+.custom-tabs .ant-tabs-nav {
+  margin: 0 !important;
   background: transparent !important;
+  border: none !important;
+}
+
+.custom-tabs .ant-tabs-nav::before {
+  display: none !important;
+}
+
+.custom-tabs .ant-tabs-tab {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-bottom: none !important;
+  border-radius: 6px 6px 0 0 !important;
+  margin-right: 4px !important;
+  padding: 6px 12px !important;
+  transition: all 0.2s ease !important;
+}
+
+.custom-tabs .ant-tabs-tab:hover {
+  background: #f3f4f6 !important;
+  border-color: #d1d5db !important;
+}
+
+.custom-tabs .ant-tabs-tab-active {
+  background: #ffffff !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.custom-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #3b82f6 !important;
+  font-weight: 500 !important;
+}
+
+.custom-tabs .ant-tabs-tab-remove {
+  margin-left: 6px !important;
+  color: #9ca3af !important;
+  transition: color 0.2s ease !important;
+}
+
+.custom-tabs .ant-tabs-tab-remove:hover {
+  color: #ef4444 !important;
+  background: transparent !important;
+}
+
+.custom-tabs .ant-tabs-ink-bar {
+  display: none !important;
 }
 
 /* 响应式字体 */

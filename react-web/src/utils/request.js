@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { message } from 'antd'
+import { isBusinessError, isBusinessSuccess, handleAuthError } from '@/utils/errorHandler'
 
 // 创建axios实例
 const request = axios.create({
@@ -28,44 +28,41 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
     (response) => {
-        const { data } = response
-
         // 如果是文件下载等特殊响应，直接返回
         if (response.config.responseType === 'blob') {
             return response
         }
 
-        return data
-    },
-    (error) => {
-        const { response } = error
-
-        if (response) {
-            const { status, data } = response
-
-            switch (status) {
-                case 401:
-                    message.error('登录已过期，请重新登录')
-                    localStorage.removeItem('token')
-                    localStorage.removeItem('userInfo')
-                    window.location.href = '/login'
-                    break
-                case 403:
-                    message.error('没有权限访问')
-                    break
-                case 404:
-                    message.error('请求的资源不存在')
-                    break
-                case 500:
-                    message.error('服务器内部错误')
-                    break
-                default:
-                    message.error(data?.message || '请求失败')
-            }
-        } else {
-            message.error('网络连接失败')
+        // 检查是否为业务成功
+        if (isBusinessSuccess(response)) {
+            return response.data
         }
 
+        // 检查是否为业务错误（在正常HTTP响应中）
+        if (isBusinessError(response)) {
+            // 处理认证错误
+            if (response.status === 401) {
+                handleAuthError(response.status)
+            }
+
+            // 创建业务错误对象并抛出
+            const error = new Error('Business Error')
+            error.response = response
+            return Promise.reject(error)
+        }
+
+        // 其他情况直接返回数据
+        return response.data
+    },
+    (error) => {
+        // 处理网络错误和HTTP错误状态码
+
+        // 处理认证错误
+        if (error.response?.status === 401) {
+            handleAuthError(error.response.status)
+        }
+
+        // 拒绝Promise，让组件处理具体的错误显示
         return Promise.reject(error)
     }
 )

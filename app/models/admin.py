@@ -8,7 +8,7 @@ from .enums import MethodType
 
 class User(BaseModel, TimestampMixin):
     username = fields.CharField(max_length=20, unique=True, description="用户名称", index=True)
-    alias = fields.CharField(max_length=30, null=True, description="姓名", index=True)
+    nickname = fields.CharField(max_length=30, null=True, description="昵称", index=True)
     email = fields.CharField(max_length=255, unique=True, description="邮箱", index=True)
     phone = fields.CharField(max_length=20, null=True, description="电话", index=True)
     password = fields.CharField(max_length=128, null=True, description="密码")
@@ -101,9 +101,9 @@ class AuditLog(BaseModel, TimestampMixin):
             ("created_at", "module"),
             ("created_at", "status"),
             ("created_at", "operation_type"),
-            ("created_at", "log_level")
+            ("created_at", "log_level"),
         ]
-    
+
     async def to_dict(self):
         """转换为字典"""
         return {
@@ -123,9 +123,9 @@ class AuditLog(BaseModel, TimestampMixin):
             "operation_type": self.operation_type,
             "log_level": self.log_level,
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at else None,
-            "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M:%S") if self.updated_at else None
+            "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M:%S") if self.updated_at else None,
         }
-    
+
     @classmethod
     async def get_logs_by_date_range(cls, start_date, end_date, **filters):
         """根据日期范围和过滤条件获取日志"""
@@ -137,14 +137,15 @@ class AuditLog(BaseModel, TimestampMixin):
                 else:
                     q &= Q(**{key: value})
         return await cls.filter(q & Q(is_deleted=False)).order_by("-created_at")
-    
+
     @classmethod
     async def get_logs_statistics(cls, days=7):
         """获取最近n天的日志统计信息"""
         import datetime
+
         today = datetime.date.today()
-        start_date = today - datetime.timedelta(days=days-1)
-        
+        start_date = today - datetime.timedelta(days=days - 1)
+
         result = {}
         for i in range(days):
             current_date = start_date + datetime.timedelta(days=i)
@@ -152,10 +153,10 @@ class AuditLog(BaseModel, TimestampMixin):
             count = await cls.filter(
                 created_at__gte=current_date.strftime("%Y-%m-%d"),
                 created_at__lt=next_date.strftime("%Y-%m-%d"),
-                is_deleted=False
+                is_deleted=False,
             ).count()
             result[current_date.strftime("%Y-%m-%d")] = count
-        
+
         return result
 
     @classmethod

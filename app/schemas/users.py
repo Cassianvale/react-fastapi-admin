@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class BaseUser(BaseModel):
@@ -77,3 +77,23 @@ class TokenPayload(BaseModel):
 class UpdatePassword(BaseModel):
     old_password: str = Field(description="旧密码")
     new_password: str = Field(description="新密码")
+
+
+class ProfileUpdate(BaseModel):
+    """用户个人信息更新模型"""
+
+    nickname: Optional[str] = Field(None, max_length=30, description="昵称")
+    email: Optional[EmailStr] = Field(None, description="邮箱")
+    phone: Optional[str] = Field(None, max_length=11, description="手机号码")
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v):
+        if v is not None and v != "":
+            # 检查是否为11位数字且以1开头，第二位为3-9
+            if not v.isdigit() or len(v) != 11 or not v.startswith("1") or v[1] not in "3456789":
+                raise ValueError("手机号码必须是11位数字，且格式正确")
+        return v
+
+    def update_dict(self):
+        return self.model_dump(exclude_unset=True)

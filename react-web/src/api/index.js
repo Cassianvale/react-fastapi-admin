@@ -8,6 +8,7 @@ export default {
         getUserMenu: () => request.get('/base/usermenu'),
         getUserApi: () => request.get('/base/userapi'),
         updatePassword: (data = {}) => request.post('/base/update_password', data),
+        updateProfile: (data = {}) => request.post('/base/update_profile', data),
     },
 
     // 用户管理
