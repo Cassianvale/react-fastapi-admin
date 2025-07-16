@@ -1,0 +1,326 @@
+# React 错误处理系统规范
+
+## 🎯 错误处理策略
+
+本项目采用完善的错误处理系统，通过统一的错误分类和处理机制，提供良好的用户体验。
+
+### 错误类型分类
+
+#### 1. 业务错误 (BUSINESS_ERROR)
+
+- **定义**: 业务逻辑相关的错误，如表单验证失败、数据冲突等
+- **HTTP 状态码**: 400, 422, 409, 412
+- **处理方式**: 显示具体的错误消息给用户
+
+#### 2. 网络错误 (NETWORK_ERROR)
+
+- **定义**: 网络连接失败、请求超时等网络层面的错误
+- **特征**: 没有 response 对象
+- **处理方式**: 显示网络错误提示
+
+#### 3. 认证错误 (AUTH_ERROR)
+
+- **定义**: 认证和授权相关的错误
+- **HTTP 状态码**: 401, 403
+- **处理方式**: 清除认证信息，重定向到登录页
+
+#### 4. 系统错误 (SYSTEM_ERROR)
+
+- **定义**: 服务器内部错误、网关错误等系统级错误
+- **HTTP 状态码**: 500, 502, 503, 504
+- **处理方式**: 显示系统错误提示，可选择上报错误
+
+## 🔧 核心工具和 Hooks
+
+### 1. useErrorHandler Hook
+
+参考: [react-web/src/hooks/useErrorHandler.js](mdc:react-web/src/hooks/useErrorHandler.js)
+
+```jsx
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+
+const MyComponent = () => {
+  const { handleError, handleBusinessError, showSuccess } = useErrorHandler();
+
+  const handleSubmit = async (values) => {
+    try {
+      await api.submitForm(values);
+      showSuccess("提交成功！");
+    } catch (error) {
+      // 自动识别错误类型并处理
+      handleError(error, "提交失败，请重试");
+    }
+  };
+
+  return (
+    // 组件内容
+  );
+};
+```
+
+### 2. 错误处理工具函数
+
+参考: [react-web/src/utils/errorHandler.js](mdc:react-web/src/utils/errorHandler.js)
+
+```jsx
+import {
+  getErrorType,
+  getErrorMessage,
+  handleError,
+} from "@/utils/errorHandler";
+
+// 错误类型判断
+const errorType = getErrorType(error);
+
+// 错误消息提取
+const message = getErrorMessage(error);
+
+// 统一错误处理
+handleError(error, defaultMessage);
+```
+
+### 3. 错误处理初始化
+
+参考: [react-web/src/utils/errorInit.js](mdc:react-web/src/utils/errorInit.js)
+
+```jsx
+// 在应用启动时初始化全局错误处理
+import { initErrorHandling } from "@/utils/errorInit";
+
+// 在 main.jsx 中调用
+initErrorHandling();
+```
+
+## 📝 使用指南
+
+### 1. 基础错误处理
+
+```jsx
+const UserForm = () => {
+  const { handleError, showSuccess } = useErrorHandler();
+
+  const onSubmit = async (values) => {
+    try {
+      const result = await userApi.create(values);
+      showSuccess("用户创建成功！");
+      return result;
+    } catch (error) {
+      handleError(error, "创建用户失败");
+    }
+  };
+
+  return <Form onFinish={onSubmit}>{/* 表单内容 */}</Form>;
+};
+```
+
+### 2. 业务错误处理
+
+```jsx
+const DataTable = () => {
+  const { handleBusinessError } = useErrorHandler();
+
+  const onDelete = async (id) => {
+    try {
+      await api.delete(id);
+    } catch (error) {
+      // 专门处理业务逻辑错误
+      handleBusinessError(error, {
+        400: "请求参数错误",
+        409: "该数据正在被使用，无法删除",
+        422: "数据验证失败"
+      });
+    }
+  };
+
+  return (
+    // 表格组件
+  );
+};
+```
+
+### 3. 自定义错误处理器
+
+```jsx
+const FileUpload = () => {
+  const { handleError } = useErrorHandler();
+
+  const customErrorHandler = (error) => {
+    if (error.code === 'FILE_TOO_LARGE') {
+      message.error('文件大小超过限制');
+    } else if (error.code === 'UNSUPPORTED_FORMAT') {
+      message.error('不支持的文件格式');
+    } else {
+      handleError(error, '文件上传失败');
+    }
+  };
+
+  const onUpload = async (file) => {
+    try {
+      await uploadApi.upload(file);
+    } catch (error) {
+      customErrorHandler(error);
+    }
+  };
+
+  return (
+    // 上传组件
+  );
+};
+```
+
+### 4. 全局错误边界
+
+```jsx
+import React from "react";
+import { Result, Button } from "antd";
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Error Boundary 捕获到错误:", error, errorInfo);
+    // 可以在这里上报错误到监控系统
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Result
+          status="500"
+          title="页面出现错误"
+          subTitle="抱歉，页面发生了意外错误。"
+          extra={
+            <Button type="primary" onClick={() => window.location.reload()}>
+              刷新页面
+            </Button>
+          }
+        />
+      );
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+## 🌐 HTTP 请求错误处理
+
+### 1. 请求拦截器
+
+参考: [react-web/src/utils/request.js](mdc:react-web/src/utils/request.js)
+
+```jsx
+// 请求拦截器 - 添加认证信息
+request.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+```
+
+### 2. 响应拦截器
+
+```jsx
+// 响应拦截器 - 统一错误处理
+request.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    // 认证错误处理
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+      return Promise.reject(error);
+    }
+
+    // 其他错误交给组件处理
+    return Promise.reject(error);
+  }
+);
+```
+
+## 🚨 错误上报和监控
+
+### 1. 错误日志记录
+
+```jsx
+const logError = (error, context = {}) => {
+  const errorLog = {
+    message: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString(),
+    url: window.location.href,
+    userAgent: navigator.userAgent,
+    context,
+  };
+
+  // 发送到监控服务
+  console.error("Error Log:", errorLog);
+
+  // 可以集成 Sentry、LogRocket 等监控服务
+};
+```
+
+### 2. 性能监控
+
+```jsx
+const trackApiPerformance = (apiName, startTime, error = null) => {
+  const endTime = performance.now();
+  const duration = endTime - startTime;
+
+  const performanceLog = {
+    api: apiName,
+    duration,
+    timestamp: new Date().toISOString(),
+    success: !error,
+    error: error?.message,
+  };
+
+  console.log("API Performance:", performanceLog);
+};
+```
+
+## 🎯 最佳实践
+
+### 1. 错误处理原则
+
+- **用户友好**: 向用户显示可理解的错误信息
+- **开发者友好**: 在控制台记录详细的错误信息
+- **一致性**: 使用统一的错误处理模式
+- **可恢复性**: 提供错误恢复机制
+
+### 2. 错误消息规范
+
+- 避免技术术语，使用用户能理解的语言
+- 提供具体的解决建议
+- 保持消息简洁明了
+- 支持国际化
+
+### 3. 错误处理测试
+
+- 模拟各种错误场景
+- 测试错误处理的用户体验
+- 验证错误边界的工作情况
+- 确保错误不会导致应用崩溃
+
+### 4. 错误恢复策略
+
+- 提供重试机制
+- 支持离线模式
+- 自动恢复连接
+- 保存用户输入数据

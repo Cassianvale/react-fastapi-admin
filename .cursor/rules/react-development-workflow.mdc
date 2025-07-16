@@ -1,0 +1,493 @@
+# React 开发工作流规范
+
+## 🚀 开发环境配置
+
+### 构建工具 - Vite 7
+
+参考: [react-web/vite.config.js](mdc:react-web/vite.config.js)
+
+```javascript
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import tailwindcss from "@tailwindcss/vite";
+import path from "path";
+
+export default defineConfig({
+  plugins: [
+    react(), // React SWC 插件，更快的编译速度
+    tailwindcss(), // Tailwind CSS 集成
+  ],
+
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"), // 路径别名
+    },
+  },
+
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:9999", // FastAPI 后端代理
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, "/api/v1"),
+      },
+    },
+  },
+
+  build: {
+    target: "es2015",
+    outDir: "dist",
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          antd: ["antd"],
+          router: ["react-router-dom"],
+        },
+      },
+    },
+  },
+});
+```
+
+### 包管理配置
+
+参考: [react-web/package.json](mdc:react-web/package.json)
+
+```json
+{
+  "name": "react-web",
+  "scripts": {
+    "dev": "vite", // 开发服务器
+    "build": "vite build", // 生产构建
+    "preview": "vite preview", // 预览构建结果
+    "lint": "eslint .", // 代码检查
+    "lint:fix": "eslint . --fix", // 自动修复
+    "type-check": "tsc --noEmit" // 类型检查
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "antd": "^5.26.5",
+    "tailwindcss": "^4.1.11",
+    "react-router-dom": "^7.6.3",
+    "axios": "^1.10.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react-swc": "^3.10.2",
+    "vite": "^7.0.4",
+    "eslint": "^9.30.1"
+  }
+}
+```
+
+## 🔍 代码质量控制
+
+### ESLint 配置
+
+参考: [react-web/eslint.config.js](mdc:react-web/eslint.config.js)
+
+```javascript
+import js from "@eslint/js";
+import globals from "globals";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+
+export default [
+  { ignores: ["dist"] },
+  {
+    extends: [js.configs.recommended],
+    files: ["**/*.{js,jsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+    },
+    plugins: {
+      "react-hooks": reactHooks,
+      "react-refresh": reactRefresh,
+    },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
+      // 自定义规则
+      "no-console": "warn",
+      "no-unused-vars": "error",
+      "prefer-const": "error",
+    },
+  },
+];
+```
+
+### 代码格式化 - Prettier 配置
+
+```json
+{
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "jsxSingleQuote": false,
+  "bracketSpacing": true,
+  "jsxBracketSameLine": false,
+  "arrowParens": "avoid"
+}
+```
+
+## 📝 开发工作流
+
+### 1. 项目启动流程
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 新终端窗口 - 启动后端服务
+cd ../
+python main.py
+
+# 代码检查
+npm run lint
+
+# 构建生产版本
+npm run build
+```
+
+### 2. 开发规范
+
+#### Git 提交规范
+
+```bash
+# 功能开发
+git commit -m "feat: 添加用户管理页面"
+
+# 错误修复
+git commit -m "fix: 修复登录表单验证问题"
+
+# 样式调整
+git commit -m "style: 优化响应式布局"
+
+# 重构代码
+git commit -m "refactor: 重构 API 请求封装"
+
+# 文档更新
+git commit -m "docs: 更新组件使用说明"
+```
+
+#### 分支管理策略
+
+```bash
+# 主分支
+main            # 生产环境代码
+develop         # 开发环境代码
+
+# 功能分支
+feature/user-management     # 用户管理功能
+feature/role-permission     # 角色权限功能
+
+# 修复分支
+hotfix/login-bug           # 紧急修复
+```
+
+### 3. 代码审查清单
+
+#### 功能性检查
+
+- [ ] 功能是否按需求正常工作
+- [ ] 错误处理是否完善
+- [ ] 边界条件是否考虑
+- [ ] 性能是否满足要求
+
+#### 代码质量检查
+
+- [ ] 代码结构是否清晰
+- [ ] 变量命名是否规范
+- [ ] 注释是否充分
+- [ ] 是否遵循项目规范
+
+#### UI/UX 检查
+
+- [ ] 界面是否符合设计稿
+- [ ] 响应式适配是否正确
+- [ ] 交互体验是否流畅
+- [ ] 无障碍访问是否支持
+
+## 🧪 测试策略
+
+### 1. 单元测试配置
+
+```javascript
+// vitest.config.js
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react-swc";
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.js"],
+    globals: true,
+  },
+});
+```
+
+### 2. 测试工具配置
+
+```javascript
+// src/test/setup.js
+import "@testing-library/jest-dom";
+import { vi } from "vitest";
+
+// Mock localStorage
+const localStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+};
+global.localStorage = localStorageMock;
+
+// Mock IntersectionObserver
+global.IntersectionObserver = vi.fn(() => ({
+  observe: vi.fn(),
+  disconnect: vi.fn(),
+  unobserve: vi.fn(),
+}));
+```
+
+### 3. 组件测试示例
+
+```jsx
+// src/components/__tests__/Button.test.jsx
+import { render, screen, fireEvent } from "@testing-library/react";
+import { Button } from "../Button";
+
+describe("Button Component", () => {
+  it("renders correctly", () => {
+    render(<Button>Click me</Button>);
+    expect(screen.getByText("Click me")).toBeInTheDocument();
+  });
+
+  it("handles click events", () => {
+    const handleClick = vi.fn();
+    render(<Button onClick={handleClick}>Click me</Button>);
+
+    fireEvent.click(screen.getByText("Click me"));
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies custom className", () => {
+    render(<Button className="custom-class">Button</Button>);
+    expect(screen.getByText("Button")).toHaveClass("custom-class");
+  });
+});
+```
+
+## 🔧 构建和部署
+
+### 1. 生产构建优化
+
+```javascript
+// vite.config.prod.js
+export default defineConfig({
+  build: {
+    target: "es2015",
+    outDir: "dist",
+    assetsDir: "assets",
+    sourcemap: false, // 生产环境关闭源码映射
+
+    rollupOptions: {
+      output: {
+        // 代码分割策略
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          ui: ["antd"],
+          utils: ["axios", "dayjs"],
+          router: ["react-router-dom"],
+        },
+
+        // 文件命名策略
+        chunkFileNames: "js/[name]-[hash].js",
+        entryFileNames: "js/[name]-[hash].js",
+        assetFileNames: "[ext]/[name]-[hash].[ext]",
+      },
+    },
+
+    // 压缩配置
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: true, // 移除 console
+        drop_debugger: true, // 移除 debugger
+      },
+    },
+  },
+});
+```
+
+### 2. Docker 部署配置
+
+```dockerfile
+# Dockerfile
+FROM node:18-alpine as builder
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY . .
+RUN npm run build
+
+# 生产镜像
+FROM nginx:alpine
+
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+### 3. Nginx 配置
+
+```nginx
+# nginx.conf
+server {
+    listen 80;
+    server_name localhost;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # 静态资源缓存
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # API 代理
+    location /api/ {
+        proxy_pass http://backend:9999/api/v1/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # SPA 路由支持
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+## 📊 性能监控
+
+### 1. 构建分析
+
+```bash
+# 安装分析工具
+npm install --save-dev rollup-plugin-visualizer
+
+# 构建分析
+npm run build -- --mode analyze
+```
+
+### 2. 运行时性能监控
+
+```javascript
+// src/utils/performance.js
+export const performanceMonitor = {
+  // 页面加载时间
+  measurePageLoad: () => {
+    window.addEventListener("load", () => {
+      const navigation = performance.getEntriesByType("navigation")[0];
+      console.log(
+        "Page Load Time:",
+        navigation.loadEventEnd - navigation.loadEventStart
+      );
+    });
+  },
+
+  // 组件渲染时间
+  measureComponentRender: (componentName) => {
+    const startTime = performance.now();
+    return () => {
+      const endTime = performance.now();
+      console.log(`${componentName} Render Time:`, endTime - startTime);
+    };
+  },
+
+  // API 请求时间
+  measureApiCall: (apiName, promise) => {
+    const startTime = performance.now();
+    return promise.finally(() => {
+      const endTime = performance.now();
+      console.log(`${apiName} API Time:`, endTime - startTime);
+    });
+  },
+};
+```
+
+### 3. 错误监控集成
+
+```javascript
+// src/utils/errorTracking.js
+export const initErrorTracking = () => {
+  // 全局错误处理
+  window.addEventListener("error", (event) => {
+    console.error("Global Error:", {
+      message: event.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      error: event.error,
+    });
+  });
+
+  // Promise 错误处理
+  window.addEventListener("unhandledrejection", (event) => {
+    console.error("Unhandled Promise Rejection:", event.reason);
+  });
+};
+```
+
+## 🎯 最佳实践总结
+
+### 开发效率
+
+- 使用 Vite 的热重载提高开发速度
+- 配置路径别名简化导入语句
+- 利用 ESLint 和 Prettier 保持代码一致性
+- 编写测试确保代码质量
+
+### 构建优化
+
+- 合理配置代码分割减少包体积
+- 启用 Tree Shaking 移除无用代码
+- 压缩和优化静态资源
+- 配置缓存策略提高加载速度
+
+### 部署策略
+
+- 使用 Docker 容器化部署
+- 配置 CDN 加速静态资源
+- 实施蓝绿部署减少停机时间
+- 监控应用性能和错误
+
+### 团队协作
+
+- 建立清晰的代码规范和工作流程
+- 进行代码审查确保质量
+- 编写文档便于团队理解
+- 定期技术分享促进学习
+  description:
+  globs:
+  alwaysApply: false
+
+---

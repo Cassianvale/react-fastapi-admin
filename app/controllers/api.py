@@ -3,6 +3,7 @@ from fastapi.routing import APIRoute
 from app.core.crud import CRUDBase
 from app.utils.log_control import logger
 from app.models.admin import Api
+from app.models.enums import MethodType
 from app.schemas.apis import ApiCreate, ApiUpdate
 
 
@@ -40,7 +41,13 @@ class ApiController(CRUDBase[Api, ApiCreate, ApiUpdate]):
                     await api_obj.update_from_dict(dict(method=method, path=path, summary=summary, tags=tags)).save()
                 else:
                     logger.debug(f"API Created {method} {path}")
-                    await Api.create(**dict(method=method, path=path, summary=summary, tags=tags))
+                    # 修复：正确创建API对象，确保method字段类型正确
+                    await Api.create(
+                        method=MethodType(method),  # 确保正确的枚举类型
+                        path=path,
+                        summary=summary,
+                        tags=tags
+                    )
 
 
 api_controller = ApiController()

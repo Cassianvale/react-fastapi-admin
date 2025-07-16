@@ -38,25 +38,44 @@ class UserOut(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr = Field(description="邮箱")
     username: str = Field(description="用户名")
+    nickname: Optional[str] = Field(None, description="昵称")
+    phone: Optional[str] = Field(None, description="手机号")
     password: str = Field(description="密码")
     is_active: Optional[bool] = True
     is_superuser: Optional[bool] = False
     role_ids: Optional[List[int]] = []
-    dept_id: Optional[int] = Field(default=0, description="部门ID")
+    dept_id: Optional[int] = Field(default=None, description="部门ID")
 
     def create_dict(self):
-        return self.model_dump(exclude_unset=True, exclude={"role_ids"})
+        """返回用于数据库创建的字典，排除role_ids和处理空值"""
+        data = self.model_dump(exclude_unset=True, exclude={"role_ids"})
+        # 处理空字符串字段，转换为None以避免数据库约束错误
+        for key, value in data.items():
+            if isinstance(value, str) and value.strip() == "":
+                data[key] = None
+        return data
 
 
 class UserUpdate(BaseModel):
     id: int
     username: Optional[str] = Field(None, description="用户名")
     email: Optional[EmailStr] = Field(None, description="邮箱")
+    nickname: Optional[str] = Field(None, description="昵称")
+    phone: Optional[str] = Field(None, description="手机号")
     password: Optional[str] = Field(None, description="密码")
     is_active: Optional[bool] = Field(None, description="是否激活")
     is_superuser: Optional[bool] = Field(None, description="是否是超级管理员")
     role_ids: Optional[List[int]] = Field(None, description="角色ids")
     dept_id: Optional[int] = Field(None, description="部门ID")
+
+    def update_dict(self):
+        """返回用于数据库更新的字典，排除role_ids和空值字段"""
+        data = self.model_dump(exclude_unset=True, exclude={"id", "role_ids"})
+        # 处理空字符串字段，转换为None以避免数据库约束错误
+        for key, value in data.items():
+            if isinstance(value, str) and value.strip() == "":
+                data[key] = None
+        return data
 
 
 class Token(BaseModel):

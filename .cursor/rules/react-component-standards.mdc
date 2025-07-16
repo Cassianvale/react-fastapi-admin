@@ -1,0 +1,324 @@
+# React 组件开发规范
+
+## 🎯 组件开发原则
+
+### 1. 函数式组件优先
+
+- 使用函数式组件 + Hooks，避免类组件
+- 利用 React 18 的新特性和性能优化
+
+```jsx
+// ✅ 推荐：函数式组件
+const UserProfile = ({ userId, onUpdate }) => {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    fetchUser(userId).then(setUser);
+  }, [userId]);
+
+  return <div>{/* 组件内容 */}</div>;
+};
+
+// ❌ 避免：类组件
+class UserProfile extends Component {
+  // ...
+}
+```
+
+### 2. 单一职责原则
+
+- 每个组件专注于一个特定功能
+- 组件应该易于理解和维护
+- 当组件变得复杂时，考虑拆分
+
+### 3. Props 接口设计
+
+- 明确定义组件的输入输出
+- 使用 PropTypes 或 TypeScript 进行类型检查
+- 为可选 props 提供默认值
+
+```jsx
+const Button = ({
+  children,
+  type = "primary",
+  size = "middle",
+  loading = false,
+  onClick,
+  disabled = false,
+  ...restProps
+}) => {
+  return (
+    <AntButton
+      type={type}
+      size={size}
+      loading={loading}
+      onClick={onClick}
+      disabled={disabled}
+      {...restProps}
+    >
+      {children}
+    </AntButton>
+  );
+};
+```
+
+## 🔧 Hooks 使用规范
+
+### 1. 状态管理
+
+- 使用 `useState` 管理组件局部状态
+- 使用 `useReducer` 处理复杂状态逻辑
+- 合理拆分状态，避免巨大的状态对象
+
+```jsx
+// ✅ 推荐：拆分状态
+const [user, setUser] = useState(null);
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState(null);
+
+// ❌ 避免：巨大的状态对象
+const [state, setState] = useState({
+  user: null,
+  loading: false,
+  error: null,
+  // ... 更多状态
+});
+```
+
+### 2. 副作用处理
+
+- 使用 `useEffect` 处理副作用
+- 正确设置依赖数组
+- 清理副作用，避免内存泄漏
+
+```jsx
+useEffect(() => {
+  const controller = new AbortController();
+
+  fetchData(controller.signal).then(setData).catch(setError);
+
+  // 清理函数
+  return () => {
+    controller.abort();
+  };
+}, [dependency]);
+```
+
+### 3. 自定义 Hooks
+
+- 提取复用逻辑到自定义 Hooks
+- 遵循 Hook 命名规范（以 use 开头）
+- 参考 [react-web/src/hooks/useErrorHandler.js](mdc:react-web/src/hooks/useErrorHandler.js)
+
+```jsx
+// 自定义 Hook 示例
+const useApi = (url, options = {}) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // API 调用逻辑
+  }, [url]);
+
+  return { data, loading, error };
+};
+```
+
+## 🎨 样式和 UI 规范
+
+### 1. Tailwind CSS 使用
+
+- 优先使用 Tailwind 原子化类名
+- 保持样式的一致性和可维护性
+- 使用响应式前缀处理不同屏幕尺寸
+
+```jsx
+const Card = ({ children, className = "" }) => {
+  return (
+    <div
+      className={`
+      bg-white 
+      rounded-lg 
+      shadow-md 
+      p-6 
+      hover:shadow-lg 
+      transition-shadow
+      ${className}
+    `}
+    >
+      {children}
+    </div>
+  );
+};
+```
+
+### 2. Ant Design 集成
+
+- 合理使用 Ant Design 组件
+- 遵循 Ant Design 的设计规范
+- 通过 ConfigProvider 统一配置主题
+
+```jsx
+import { Button, Card, Table } from "antd";
+
+const UserList = () => {
+  return (
+    <Card title="用户列表">
+      <Table
+        dataSource={users}
+        columns={columns}
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: true,
+          showQuickJumper: true,
+        }}
+      />
+    </Card>
+  );
+};
+```
+
+### 3. 响应式设计
+
+- 使用 Tailwind 的响应式前缀
+- 考虑移动端用户体验
+- 测试不同屏幕尺寸的显示效果
+
+```jsx
+const ResponsiveGrid = () => {
+  return (
+    <div
+      className="
+      grid 
+      grid-cols-1 
+      md:grid-cols-2 
+      lg:grid-cols-3 
+      gap-4 
+      p-4
+    "
+    >
+      {/* 网格项目 */}
+    </div>
+  );
+};
+```
+
+## 🔄 状态管理模式
+
+### 1. 局部状态
+
+- 使用 `useState` 管理组件内部状态
+- 状态提升：将共享状态提升到最近的共同父组件
+
+### 2. 全局状态
+
+- 对于复杂的全局状态，考虑使用 Context API
+- 谨慎使用，避免过度使用 Context
+
+```jsx
+// 用户上下文示例
+const UserContext = createContext();
+
+export const UserProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+
+  return (
+    <UserContext.Provider value={{ user, setUser }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
+
+export const useUser = () => {
+  const context = useContext(UserContext);
+  if (!context) {
+    throw new Error("useUser must be used within UserProvider");
+  }
+  return context;
+};
+```
+
+## 📁 文件组织规范
+
+### 1. 组件文件结构
+
+```
+components/
+├── Layout/
+│   ├── index.jsx          # 主组件
+│   ├── Header.jsx         # 子组件
+│   ├── Sidebar.jsx        # 子组件
+│   └── styles.module.css  # 样式文件（如需要）
+```
+
+### 2. 页面文件结构
+
+```
+pages/
+├── UserManagement/
+│   ├── index.jsx          # 主页面组件
+│   ├── UserList.jsx       # 用户列表组件
+│   ├── UserForm.jsx       # 用户表单组件
+│   └── hooks/
+│       └── useUserData.js # 页面专用 hooks
+```
+
+### 3. 命名规范
+
+- 组件文件使用 PascalCase：`UserProfile.jsx`
+- Hook 文件使用 camelCase：`useUserData.js`
+- 工具函数使用 camelCase：`formatDate.js`
+
+## 🔍 性能优化
+
+### 1. 组件优化
+
+- 使用 `React.memo` 避免不必要的重渲染
+- 使用 `useMemo` 和 `useCallback` 优化计算和函数
+
+```jsx
+const UserItem = React.memo(({ user, onUpdate }) => {
+  const handleUpdate = useCallback(() => {
+    onUpdate(user.id);
+  }, [user.id, onUpdate]);
+
+  return (
+    <div>
+      {/* 用户信息 */}
+      <Button onClick={handleUpdate}>更新</Button>
+    </div>
+  );
+});
+```
+
+### 2. 懒加载
+
+- 使用 `React.lazy` 和 `Suspense` 实现代码分割
+- 按路由进行组件懒加载
+
+```jsx
+const UserManagement = React.lazy(() => import("@/pages/UserManagement"));
+
+const App = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <UserManagement />
+    </Suspense>
+  );
+};
+```
+
+## 🧪 测试规范
+
+### 1. 组件测试
+
+- 编写单元测试验证组件行为
+- 测试用户交互和状态变化
+- 使用 React Testing Library
+
+### 2. 测试原则
+
+- 测试用户可见的行为，而非实现细节
+- 保持测试简单和可维护
+- 追求合理的测试覆盖率

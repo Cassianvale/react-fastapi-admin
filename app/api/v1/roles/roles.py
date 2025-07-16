@@ -5,6 +5,7 @@ from fastapi.exceptions import HTTPException
 from tortoise.expressions import Q
 
 from app.controllers import role_controller
+from app.core.exceptions import RecordNotFoundError
 from app.schemas.base import Success, SuccessExtra
 from app.schemas.roles import *
 
@@ -31,6 +32,8 @@ async def get_role(
     role_id: int = Query(..., description="角色ID"),
 ):
     role_obj = await role_controller.get(id=role_id)
+    if not role_obj:
+        raise RecordNotFoundError("角色不存在")
     return Success(data=await role_obj.to_dict())
 
 
@@ -39,29 +42,37 @@ async def create_role(role_in: RoleCreate):
     if await role_controller.is_exist(name=role_in.name):
         raise HTTPException(
             status_code=400,
-            detail="The role with this rolename already exists in the system.",
+            detail="该角色名称已存在",
         )
     await role_controller.create(obj_in=role_in)
-    return Success(msg="Created Successfully")
+    return Success(msg="创建成功")
 
 
 @router.post("/update", summary="更新角色")
 async def update_role(role_in: RoleUpdate):
+    role_obj = await role_controller.get(id=role_in.id)
+    if not role_obj:
+        raise RecordNotFoundError("角色不存在")
     await role_controller.update(id=role_in.id, obj_in=role_in)
-    return Success(msg="Updated Successfully")
+    return Success(msg="更新成功")
 
 
 @router.delete("/delete", summary="删除角色")
 async def delete_role(
     role_id: int = Query(..., description="角色ID"),
 ):
+    role_obj = await role_controller.get(id=role_id)
+    if not role_obj:
+        raise RecordNotFoundError("角色不存在")
     await role_controller.remove(id=role_id)
-    return Success(msg="Deleted Success")
+    return Success(msg="删除成功")
 
 
 @router.get("/authorized", summary="查看角色权限")
 async def get_role_authorized(id: int = Query(..., description="角色ID")):
     role_obj = await role_controller.get(id=id)
+    if not role_obj:
+        raise RecordNotFoundError("角色不存在")
     data = await role_obj.to_dict(m2m=True)
     return Success(data=data)
 
@@ -69,5 +80,7 @@ async def get_role_authorized(id: int = Query(..., description="角色ID")):
 @router.post("/authorized", summary="更新角色权限")
 async def update_role_authorized(role_in: RoleUpdateMenusApis):
     role_obj = await role_controller.get(id=role_in.id)
+    if not role_obj:
+        raise RecordNotFoundError("角色不存在")
     await role_controller.update_roles(role=role_obj, menu_ids=role_in.menu_ids, api_infos=role_in.api_infos)
-    return Success(msg="Updated Successfully")
+    return Success(msg="更新成功")

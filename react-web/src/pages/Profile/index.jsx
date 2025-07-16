@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Row, Col, Card, Form, Input, Button, Tabs, Avatar, Divider, Statistic } from 'antd'
 import { UserOutlined, LockOutlined, EditOutlined, SaveOutlined, MailOutlined, SafetyOutlined, PhoneOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import api from '@/api'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 
@@ -10,6 +11,7 @@ const Profile = () => {
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [profileForm] = Form.useForm()
   const [passwordForm] = Form.useForm()
+  const navigate = useNavigate()
   const { handleError, handleBusinessError, showSuccess, showWarning, message } = useErrorHandler()
 
   // 获取用户信息
@@ -17,11 +19,11 @@ const Profile = () => {
     try {
       const response = await api.auth.getUserInfo()
       setUserInfo(response.data)
-      // 设置表单初始值
+      // 设置表单初始值，确保空值显示为空字符串
       profileForm.setFieldsValue({
-        nickname: response.data.nickname,
-        email: response.data.email,
-        phone: response.data.phone,
+        nickname: response.data.nickname || '',
+        email: response.data.email || '',
+        phone: response.data.phone || '',
       })
     } catch (error) {
       // 获取用户信息失败时使用通用错误处理
@@ -37,13 +39,28 @@ const Profile = () => {
   const handleUpdateProfile = async (values) => {
     setLoading(true)
     try {
-      await api.auth.updateProfile(values)
-      showSuccess('个人信息更新成功！')
-      await fetchUserInfo() // 重新获取用户信息
+      // 处理空字符串，转换为null，避免后端验证错误
+      const processedValues = {
+        ...values,
+        email: values.email?.trim() || null,
+        phone: values.phone?.trim() || null,
+        nickname: values.nickname?.trim() || null
+      }
       
-      // 更新localStorage中的用户信息并通知Layout组件更新
+      await api.auth.updateProfile(processedValues)
+      showSuccess('个人信息更新成功！')
+      
+      // 重新获取用户信息并更新localStorage和Layout组件
       const response = await api.auth.getUserInfo()
+      setUserInfo(response.data)
       localStorage.setItem('userInfo', JSON.stringify(response.data))
+      
+      // 更新表单值以反映最新的用户信息
+      profileForm.setFieldsValue({
+        nickname: response.data.nickname || '',
+        email: response.data.email || '',
+        phone: response.data.phone || '',
+      })
       
       // 通知Layout组件更新用户信息显示
       if (window.updateUserInfo) {
@@ -65,8 +82,16 @@ const Profile = () => {
         old_password: values.oldPassword,
         new_password: values.newPassword,
       })
-      showSuccess('密码修改成功！')
+      showSuccess('密码修改成功！为了安全起见，请重新登录。')
       passwordForm.resetFields()
+      
+      // 清除登录信息并跳转到登录页
+      setTimeout(() => {
+        localStorage.removeItem('token')
+        localStorage.removeItem('userInfo')
+        navigate('/login')
+      }, 1500) // 1.5秒后跳转，让用户看到成功提示
+      
     } catch (error) {
       // 密码修改失败时使用业务错误处理，并支持自定义处理
       handleBusinessError(error, '密码修改失败，请重试', (standardError) => {
@@ -118,8 +143,8 @@ const Profile = () => {
                   {userInfo.nickname || userInfo.username || '未设置'}
                 </span>
               </div>
-              <div className="text-xs text-gray-500 mt-2">
-                用户名: @{userInfo.username}
+                              <div className="text-xs text-gray-500 mt-2">
+                用户名: @{userInfo.username || '未设置'}
               </div>
             </div>
           </Card>
@@ -187,15 +212,15 @@ const Profile = () => {
                   className="bg-gradient-to-r from-blue-500 to-purple-600 mb-3"
                 />
                 <h3 className="text-lg font-semibold text-gray-800">
-                  {userInfo.nickname || userInfo.username}
+                  {userInfo.nickname || userInfo.username || '未设置'}
                 </h3>
                 <p className="text-gray-500 text-sm flex items-center">
                   <UserOutlined className="mr-1" />
-                  @{userInfo.username}
+                  @{userInfo.username || '未设置'}
                 </p>
                 <p className="text-gray-500 text-sm flex items-center">
                   <MailOutlined className="mr-1" />
-                  {userInfo.email}
+                  {userInfo.email || '未设置'}
                 </p>
               </div>
               
@@ -206,6 +231,13 @@ const Profile = () => {
                     手机号码：
                   </span>
                   <span className="text-sm font-medium">{userInfo.phone || '未设置'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 flex items-center">
+                    <MailOutlined className="mr-2 text-green-500" />
+                    邮箱地址：
+                  </span>
+                  <span className="text-sm font-medium">{userInfo.email || '未设置'}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">创建时间：</span>
@@ -257,6 +289,7 @@ const Profile = () => {
                             disabled
                             className="bg-gray-50"
                             placeholder="用户名(不可修改)"
+                            autoComplete="username"
                           />
                         </Form.Item>
 
@@ -271,6 +304,7 @@ const Profile = () => {
                             prefix={<UserOutlined className="text-gray-400" />}
                             placeholder="请输入昵称"
                             size="large"
+                            autoComplete="nickname"
                           />
                         </Form.Item>
 
@@ -278,7 +312,6 @@ const Profile = () => {
                           label="邮箱地址"
                           name="email"
                           rules={[
-                            { required: true, message: '请输入邮箱地址!' },
                             { type: 'email', message: '请输入有效的邮箱地址!' }
                           ]}
                         >
@@ -286,6 +319,7 @@ const Profile = () => {
                             prefix={<MailOutlined className="text-gray-400" />}
                             placeholder="请输入邮箱地址"
                             size="large"
+                            autoComplete="email"
                           />
                         </Form.Item>
 
@@ -302,6 +336,7 @@ const Profile = () => {
                             placeholder="请输入11位手机号码"
                             size="large"
                             maxLength={11}
+                            autoComplete="tel"
                             onInput={(e) => {
                               // 只允许输入数字
                               e.target.value = e.target.value.replace(/[^\d]/g, '')
@@ -352,6 +387,7 @@ const Profile = () => {
                             prefix={<LockOutlined className="text-gray-400" />}
                             placeholder="请输入当前密码"
                             size="large"
+                            autoComplete="current-password"
                           />
                         </Form.Item>
 
@@ -367,6 +403,7 @@ const Profile = () => {
                             prefix={<LockOutlined className="text-gray-400" />}
                             placeholder="请输入新密码"
                             size="large"
+                            autoComplete="new-password"
                           />
                         </Form.Item>
 
@@ -390,6 +427,7 @@ const Profile = () => {
                             prefix={<LockOutlined className="text-gray-400" />}
                             placeholder="请确认新密码"
                             size="large"
+                            autoComplete="new-password"
                           />
                         </Form.Item>
 

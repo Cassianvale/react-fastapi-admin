@@ -1,0 +1,557 @@
+# React API 集成规范
+
+## 🌐 API 架构概览
+
+本项目采用前后端分离架构，React 前端通过 HTTP API 与 FastAPI 后端进行通信。
+
+### 基础配置
+
+- **后端地址**: `http://localhost:9999`
+- **API 版本**: `v1`
+- **代理路径**: `/api` → `/api/v1`
+- **认证方式**: JWT Bearer Token
+
+### 核心文件
+
+- [react-web/src/utils/request.js](mdc:react-web/src/utils/request.js) - HTTP 请求封装
+- [react-web/src/api/index.js](mdc:react-web/src/api/index.js) - API 接口定义
+
+## 🔧 HTTP 请求封装
+
+### 1. Axios 实例配置
+
+参考: [react-web/src/utils/request.js](mdc:react-web/src/utils/request.js)
+
+```javascript
+import axios from "axios";
+
+// 创建 axios 实例
+const request = axios.create({
+  baseURL: "/api", // 通过 Vite 代理到后端
+  timeout: 30000, // 30秒超时
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// 请求拦截器
+request.interceptors.request.use(
+  (config) => {
+    // 添加认证 Token
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // 添加请求时间戳（用于性能监控）
+    config.metadata = { startTime: performance.now() };
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// 响应拦截器
+request.interceptors.response.use(
+  (response) => {
+    // 记录响应时间
+    const duration = performance.now() - response.config.metadata.startTime;
+    console.log(
+      `API ${response.config.url} 响应时间: ${duration.toFixed(2)}ms`
+    );
+
+    return response;
+  },
+  (error) => {
+    // 统一错误处理
+    if (error.response?.status === 401) {
+      // 清除过期 token
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export default request;
+```
+
+### 2. API 接口定义
+
+参考: [react-web/src/api/index.js](mdc:react-web/src/api/index.js)
+
+```javascript
+import request from "@/utils/request";
+
+// 认证相关接口
+export const authApi = {
+  // 用户登录
+  login: (credentials) => request.post("/base/access_token", credentials),
+
+  // 获取当前用户信息
+  getCurrentUser: () => request.get("/base/userinfo"),
+
+  // 刷新 Token
+  refreshToken: (refreshToken) =>
+    request.post("/base/refresh_token", { refresh_token: refreshToken }),
+};
+
+// 用户管理接口
+export const userApi = {
+  // 获取用户列表
+  getUsers: (params) => request.get("/users/", { params }),
+
+  // 创建用户
+  createUser: (userData) => request.post("/users/", userData),
+
+  // 更新用户
+  updateUser: (id, userData) => request.put(`/users/${id}`, userData),
+
+  // 删除用户
+  deleteUser: (id) => request.delete(`/users/${id}`),
+
+  // 获取单个用户
+  getUser: (id) => request.get(`/users/${id}`),
+};
+
+// 角色管理接口
+export const roleApi = {
+  getRoles: (params) => request.get("/roles/", { params }),
+  createRole: (roleData) => request.post("/roles/", roleData),
+  updateRole: (id, roleData) => request.put(`/roles/${id}`, roleData),
+  deleteRole: (id) => request.delete(`/roles/${id}`),
+  getRole: (id) => request.get(`/roles/${id}`),
+};
+
+// 菜单管理接口
+export const menuApi = {
+  getMenus: (params) => request.get("/menus/", { params }),
+  createMenu: (menuData) => request.post("/menus/", menuData),
+  updateMenu: (id, menuData) => request.put(`/menus/${id}`, menuData),
+  deleteMenu: (id) => request.delete(`/menus/${id}`),
+  getMenuTree: () => request.get("/menus/tree"),
+};
+
+// 文件上传接口
+export const uploadApi = {
+  uploadFile: (file, onProgress) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return request.post("/upload/file", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress) {
+          const progress = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          onProgress(progress);
+        }
+      },
+    });
+  },
+
+  uploadImage: (file) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    return request.post("/upload/image", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+};
+```
+
+## 🎯 API 使用模式
+
+### 1. 基础 API 调用
+
+```jsx
+import { useState, useEffect } from 'react';
+import { userApi } from '@/api';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+
+const UserList = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { handleError } = useErrorHandler();
+
+  const fetchUsers = async (params = {}) => {
+    setLoading(true);
+    try {
+      const response = await userApi.getUsers(params);
+      setUsers(response.data.items);
+    } catch (error) {
+      handleError(error, '获取用户列表失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  return (
+    // 组件内容
+  );
+};
+```
+
+### 2. 自定义 API Hook
+
+```jsx
+import { useState, useEffect, useCallback } from 'react';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+
+const useApi = (apiFunction, initialParams = null) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const { handleError } = useErrorHandler();
+
+  const execute = useCallback(async (params = initialParams) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await apiFunction(params);
+      setData(response.data);
+      return response.data;
+    } catch (err) {
+      setError(err);
+      handleError(err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [apiFunction, initialParams, handleError]);
+
+  useEffect(() => {
+    if (initialParams !== null) {
+      execute();
+    }
+  }, []);
+
+  return { data, loading, error, execute };
+};
+
+// 使用示例
+const UserProfile = ({ userId }) => {
+  const { data: user, loading, execute: fetchUser } = useApi(
+    userApi.getUser,
+    userId
+  );
+
+  return (
+    // 组件内容
+  );
+};
+```
+
+### 3. 分页数据处理
+
+```jsx
+const usePagination = (apiFunction, pageSize = 10) => {
+  const [data, setData] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [current, setCurrent] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const { handleError } = useErrorHandler();
+
+  const fetchData = async (page = 1, size = pageSize, filters = {}) => {
+    setLoading(true);
+    try {
+      const params = {
+        page,
+        size,
+        ...filters,
+      };
+
+      const response = await apiFunction(params);
+      setData(response.data.items);
+      setTotal(response.data.total);
+      setCurrent(page);
+    } catch (error) {
+      handleError(error, "获取数据失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  return {
+    data,
+    total,
+    current,
+    loading,
+    fetchData,
+    pagination: {
+      current,
+      total,
+      pageSize,
+      onChange: (page, size) => fetchData(page, size),
+      showSizeChanger: true,
+      showQuickJumper: true,
+      showTotal: (total, range) =>
+        `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
+    },
+  };
+};
+```
+
+### 4. 表单提交处理
+
+```jsx
+import { Form, message } from "antd";
+
+const UserForm = ({ user, onSuccess }) => {
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const { handleError, showSuccess } = useErrorHandler();
+
+  const onFinish = async (values) => {
+    setLoading(true);
+    try {
+      if (user?.id) {
+        // 更新用户
+        await userApi.updateUser(user.id, values);
+        showSuccess("用户更新成功");
+      } else {
+        // 创建用户
+        await userApi.createUser(values);
+        showSuccess("用户创建成功");
+      }
+
+      onSuccess?.();
+      form.resetFields();
+    } catch (error) {
+      handleError(error, user?.id ? "更新用户失败" : "创建用户失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Form
+      form={form}
+      onFinish={onFinish}
+      initialValues={user}
+      layout="vertical"
+    >
+      {/* 表单字段 */}
+      <Form.Item>
+        <Button type="primary" htmlType="submit" loading={loading}>
+          {user?.id ? "更新" : "创建"}
+        </Button>
+      </Form.Item>
+    </Form>
+  );
+};
+```
+
+## 🔐 认证和权限
+
+### 1. Token 管理
+
+```javascript
+// Token 工具函数
+export const tokenUtils = {
+  getToken: () => localStorage.getItem("token"),
+
+  setToken: (token) => localStorage.setItem("token", token),
+
+  removeToken: () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  },
+
+  isTokenExpired: (token) => {
+    if (!token) return true;
+
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return Date.now() >= payload.exp * 1000;
+    } catch {
+      return true;
+    }
+  },
+};
+```
+
+### 2. 认证状态管理
+
+```jsx
+const useAuth = () => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const login = async (credentials) => {
+    try {
+      const response = await authApi.login(credentials);
+      const { access_token, user: userInfo } = response.data;
+
+      tokenUtils.setToken(access_token);
+      localStorage.setItem("user", JSON.stringify(userInfo));
+      setUser(userInfo);
+
+      return userInfo;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const logout = () => {
+    tokenUtils.removeToken();
+    setUser(null);
+  };
+
+  const getCurrentUser = async () => {
+    try {
+      const response = await authApi.getCurrentUser();
+      setUser(response.data);
+      localStorage.setItem("user", JSON.stringify(response.data));
+    } catch (error) {
+      logout();
+    }
+  };
+
+  useEffect(() => {
+    const token = tokenUtils.getToken();
+    const savedUser = localStorage.getItem("user");
+
+    if (token && !tokenUtils.isTokenExpired(token) && savedUser) {
+      setUser(JSON.parse(savedUser));
+    } else if (token) {
+      getCurrentUser();
+    }
+
+    setLoading(false);
+  }, []);
+
+  return { user, login, logout, loading };
+};
+```
+
+## 📊 API 性能优化
+
+### 1. 请求去重
+
+```javascript
+const requestCache = new Map();
+
+const createRequestKey = (config) => {
+  return `${config.method}_${config.url}_${JSON.stringify(
+    config.params || {}
+  )}`;
+};
+
+const dedupeRequest = (config) => {
+  const key = createRequestKey(config);
+
+  if (requestCache.has(key)) {
+    return requestCache.get(key);
+  }
+
+  const request = axios(config);
+  requestCache.set(key, request);
+
+  // 请求完成后清除缓存
+  request.finally(() => {
+    requestCache.delete(key);
+  });
+
+  return request;
+};
+```
+
+### 2. 请求缓存
+
+```javascript
+const apiCache = new Map();
+
+const cachedRequest = async (config, cacheTime = 5 * 60 * 1000) => {
+  const key = createRequestKey(config);
+  const cached = apiCache.get(key);
+
+  if (cached && Date.now() - cached.timestamp < cacheTime) {
+    return cached.data;
+  }
+
+  const response = await axios(config);
+  apiCache.set(key, {
+    data: response,
+    timestamp: Date.now(),
+  });
+
+  return response;
+};
+```
+
+### 3. 请求重试
+
+```javascript
+const retryRequest = async (config, maxRetries = 3) => {
+  let lastError;
+
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await axios(config);
+    } catch (error) {
+      lastError = error;
+
+      // 只重试网络错误和 5xx 错误
+      if (i < maxRetries && (!error.response || error.response.status >= 500)) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.pow(2, i) * 1000)
+        );
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastError;
+};
+```
+
+## 🎯 最佳实践
+
+### 1. API 设计原则
+
+- **RESTful 规范**: 遵循 REST API 设计原则
+- **统一响应格式**: 所有接口返回统一的数据结构
+- **错误处理**: 明确的错误码和错误信息
+- **版本控制**: 通过 URL 路径进行版本控制
+
+### 2. 性能优化
+
+- **请求合并**: 避免同时发送多个相似请求
+- **数据缓存**: 合理使用缓存减少网络请求
+- **分页加载**: 大数据集使用分页或虚拟滚动
+- **懒加载**: 按需加载数据和组件
+
+### 3. 安全考虑
+
+- **Token 管理**: 安全存储和传输认证 Token
+- **输入验证**: 前端验证用户输入数据
+- **HTTPS**: 生产环境使用 HTTPS 协议
+- **CORS 配置**: 正确配置跨域请求
+
+### 4. 错误处理
+
+- **全局处理**: 统一处理常见错误类型
+- **用户友好**: 显示易懂的错误信息
+- **错误恢复**: 提供重试和恢复机制
+- **日志记录**: 记录错误日志用于调试

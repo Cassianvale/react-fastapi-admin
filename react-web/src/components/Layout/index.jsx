@@ -13,14 +13,19 @@ import {
   FileTextOutlined,
   CloudUploadOutlined,
   CloseOutlined,
+  MenuOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
+import { Icon } from '@iconify/react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
+import api from '@/api'
 
 const { Header, Sider, Content } = Layout
 
 const AppLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [userInfo, setUserInfo] = useState(null)
+  const [menuItems, setMenuItems] = useState([])
   const [tabs, setTabs] = useState([
     {
       key: '/dashboard',
@@ -35,69 +40,95 @@ const AppLayout = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken()
 
-  // 菜单项配置
-  const menuItems = [
-    {
-      key: '/dashboard',
-      icon: <DashboardOutlined />,
-      label: '工作台',
-    },
-    {
-      key: '/system',
-      icon: <SettingOutlined />,
-      label: '系统管理',
-      children: [
+  // 获取用户菜单
+  const fetchUserMenu = async () => {
+    try {
+      const response = await api.auth.getUserMenu()
+      const menuData = response.data || []
+      
+      // 转换菜单数据格式
+      const convertedMenus = convertMenuData(menuData)
+      
+      // 添加工作台菜单（固定在第一位）
+      const allMenus = [
         {
-          key: '/system/users',
-          icon: <UserOutlined />,
-          label: '用户管理',
+          key: '/dashboard',
+          icon: <DashboardOutlined />,
+          label: '工作台',
         },
+        ...convertedMenus
+      ]
+      
+      setMenuItems(allMenus)
+    } catch (error) {
+      console.error('获取用户菜单失败:', error)
+      // 如果获取失败，使用默认的工作台菜单
+      setMenuItems([
         {
-          key: '/system/roles',
-          icon: <TeamOutlined />,
-          label: '角色管理',
-        },
-        {
-          key: '/system/menus',
-          icon: <ApartmentOutlined />,
-          label: '菜单管理',
-        },
-        {
-          key: '/system/apis',
-          icon: <ApiOutlined />,
-          label: 'API管理',
-        },
-        {
-          key: '/system/departments',
-          icon: <ApartmentOutlined />,
-          label: '部门管理',
-        },
-      ],
-    },
-    {
-      key: '/audit',
-      icon: <FileTextOutlined />,
-      label: '审计日志',
-    },
-    {
-      key: '/upload',
-      icon: <CloudUploadOutlined />,
-      label: '文件管理',
-    },
-  ]
+          key: '/dashboard',
+          icon: <DashboardOutlined />,
+          label: '工作台',
+        }
+      ])
+    }
+  }
 
-  // 面包屑映射
+  // 转换后端菜单数据为Ant Design Menu格式
+  const convertMenuData = (menuData, parentPath = '') => {
+    return menuData.map(menu => {
+      // 构建完整路径
+      const fullPath = parentPath ? `${parentPath}/${menu.path}` : menu.path
+      
+      const convertedMenu = {
+        key: fullPath,
+        label: menu.name,
+        icon: menu.icon ? (
+          <Icon icon={menu.icon} width="16" height="16" />
+        ) : (
+          getDefaultIcon(menu.menu_type)
+        )
+      }
+
+      // 如果有子菜单，递归转换
+      if (menu.children && menu.children.length > 0) {
+        convertedMenu.children = convertMenuData(menu.children, fullPath)
+      }
+
+      return convertedMenu
+    })
+  }
+
+  // 获取默认图标
+  const getDefaultIcon = (menuType) => {
+    switch (menuType) {
+      case 'catalog':
+        return <SettingOutlined />
+      case 'menu':
+        return <MenuOutlined />
+      case 'button':
+        return <AppstoreOutlined />
+      default:
+        return <MenuOutlined />
+    }
+  }
+
+  // 动态生成面包屑映射
+  const generateBreadcrumbMap = (menus, pathMap = {}) => {
+    menus.forEach(menu => {
+      pathMap[menu.key] = menu.label
+      if (menu.children && menu.children.length > 0) {
+        generateBreadcrumbMap(menu.children, pathMap)
+      }
+    })
+    return pathMap
+  }
+
+  // 面包屑映射（包含固定路径和动态菜单路径）
   const breadcrumbNameMap = {
-    '/dashboard': '工作台',
-    '/system': '系统管理',
-    '/system/users': '用户管理',
-    '/system/roles': '角色管理',
-    '/system/menus': '菜单管理',
-    '/system/apis': 'API管理',
-    '/system/departments': '部门管理',
-    '/audit': '审计日志',
-    '/upload': '文件管理',
+    // 固定路径
     '/profile': '个人中心',
+    // 动态菜单路径
+    ...generateBreadcrumbMap(menuItems)
   }
 
   // 标签页管理函数
@@ -133,8 +164,12 @@ const AppLayout = () => {
     setActiveTab(location.pathname)
   }, [location.pathname])
 
-  // 获取用户信息
+  // 初始化菜单和用户信息
   useEffect(() => {
+    // 获取用户菜单
+    fetchUserMenu()
+    
+    // 获取用户信息
     const storedUserInfo = localStorage.getItem('userInfo')
     if (storedUserInfo) {
       try {
@@ -183,10 +218,12 @@ const AppLayout = () => {
   // 将更新函数暴露给全局，方便其他组件调用
   useEffect(() => {
     window.updateUserInfo = updateUserInfo
+    window.refreshUserMenu = fetchUserMenu // 暴露菜单刷新函数
     return () => {
       delete window.updateUserInfo
+      delete window.refreshUserMenu
     }
-  }, [updateUserInfo])
+  }, [updateUserInfo, fetchUserMenu])
 
   // 登出功能
   const handleLogout = () => {
@@ -339,7 +376,7 @@ const AppLayout = () => {
                       }}
                     />
                     {/* 在线状态指示器 */}
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                    <div className="absolute -bottom-0.5 inset-y-9 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                   </div>
                   <div className="flex flex-col items-start">
                     <span className="text-gray-800 font-medium text-sm leading-tight group-hover:text-gray-900 transition-colors">

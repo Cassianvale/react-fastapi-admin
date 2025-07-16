@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query
 from tortoise.expressions import Q
 
 from app.controllers.api import api_controller
+from app.core.exceptions import RecordNotFoundError
 from app.schemas import Success, SuccessExtra
 from app.schemas.apis import *
 
@@ -33,6 +34,8 @@ async def get_api(
     id: int = Query(..., description="Api"),
 ):
     api_obj = await api_controller.get(id=id)
+    if not api_obj:
+        raise RecordNotFoundError("API不存在")
     data = await api_obj.to_dict()
     return Success(data=data)
 
@@ -42,26 +45,32 @@ async def create_api(
     api_in: ApiCreate,
 ):
     await api_controller.create(obj_in=api_in)
-    return Success(msg="Created Successfully")
+    return Success(msg="创建成功")
 
 
 @router.post("/update", summary="更新Api")
 async def update_api(
     api_in: ApiUpdate,
 ):
+    api_obj = await api_controller.get(id=api_in.id)
+    if not api_obj:
+        raise RecordNotFoundError("API不存在")
     await api_controller.update(id=api_in.id, obj_in=api_in)
-    return Success(msg="Update Successfully")
+    return Success(msg="更新成功")
 
 
 @router.delete("/delete", summary="删除Api")
 async def delete_api(
     api_id: int = Query(..., description="ApiID"),
 ):
+    api_obj = await api_controller.get(id=api_id)
+    if not api_obj:
+        raise RecordNotFoundError("API不存在")
     await api_controller.remove(id=api_id)
-    return Success(msg="Deleted Success")
+    return Success(msg="删除成功")
 
 
 @router.post("/refresh", summary="刷新API列表")
 async def refresh_api():
     await api_controller.refresh_api()
-    return Success(msg="OK")
+    return Success(msg="刷新成功")

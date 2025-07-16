@@ -1,20 +1,28 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import Dashboard from '@/pages/Dashboard'
-import Profile from '@/pages/Profile'
-import AppLayout from '@/components/Layout'
+import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import LoginRedirect from '@/components/LoginRedirect'
+
+// 页面组件
+import Login from '@/pages/Login'
+import Dashboard from '@/pages/Dashboard'
+import Profile from '@/pages/Profile'
+import UserManagement from '@/pages/UserManagement'
+import RoleManagement from '@/pages/RoleManagement'
+import ApiManagement from '@/pages/ApiManagement'
+import MenuManagement from '@/pages/MenuManagement'
+import { NotFoundPage } from '@/pages/ErrorPages'
 
 const router = createBrowserRouter([
   {
     path: '/login',
-    element: <LoginRedirect />,
+    element: <Login />,
   },
   {
     path: '/',
     element: (
       <ProtectedRoute>
-        <AppLayout />
+        <Layout />
       </ProtectedRoute>
     ),
     children: [
@@ -26,56 +34,55 @@ const router = createBrowserRouter([
         path: 'dashboard',
         element: <Dashboard />,
       },
+      {
+        path: 'profile',
+        element: <Profile />,
+      },
       // 系统管理路由
       {
         path: 'system',
         children: [
           {
             path: 'users',
-            element: <div>用户管理页面</div>,
+            element: <UserManagement />,
           },
           {
             path: 'roles',
-            element: <div>角色管理页面</div>,
-          },
-          {
-            path: 'menus',
-            element: <div>菜单管理页面</div>,
+            element: <RoleManagement />,
           },
           {
             path: 'apis',
-            element: <div>API管理页面</div>,
+            element: <ApiManagement />,
+          },
+          {
+            path: 'menus',
+            element: <MenuManagement />,
           },
           {
             path: 'departments',
             element: <div>部门管理页面</div>,
           },
+          {
+            path: 'audit',
+            element: <div>审计日志页面</div>,
+          },
+          {
+            path: 'upload',
+            element: <div>文件管理页面</div>,
+          },
         ],
       },
-      // 其他路由
+      // 404页面 - 在Layout内容区域显示
       {
-        path: 'audit',
-        element: <div>审计日志页面</div>,
-      },
-      {
-        path: 'upload',
-        element: <div>文件管理页面</div>,
-      },
-      {
-        path: 'profile',
-        element: <Profile />,
+        path: '*',
+        element: <NotFoundPage />,
       },
     ],
   },
-  // 404页面
+  // 登录重定向处理
   {
-    path: '*',
-    element: <div className="flex items-center justify-center h-screen">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-800 mb-4">404</h1>
-        <p className="text-gray-600">页面不存在</p>
-      </div>
-    </div>,
+    path: '/auth/callback',
+    element: <LoginRedirect />,
   },
 ])
 

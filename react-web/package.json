@@ -11,6 +11,12 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
+    "@iconify/icons-ant-design": "^1.2.7",
+    "@iconify/icons-carbon": "^1.2.20",
+    "@iconify/icons-material-symbols": "^1.2.58",
+    "@iconify/icons-mingcute": "^1.2.9",
+    "@iconify/icons-ph": "^1.2.5",
+    "@iconify/react": "^6.0.0",
     "@tailwindcss/vite": "^4.1.11",
     "antd": "^5.26.5",
     "axios": "^1.10.0",

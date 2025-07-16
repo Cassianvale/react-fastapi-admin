@@ -21,6 +21,7 @@ async def list_user(
     page: int = Query(1, description="页码"),
     page_size: int = Query(10, description="每页数量"),
     username: str = Query("", description="用户名称，用于搜索"),
+    nickname: str = Query("", description="昵称，用于搜索"),
     email: str = Query("", description="邮箱地址"),
     dept_id: int = Query(None, description="部门ID"),
 ):
@@ -31,6 +32,7 @@ async def list_user(
         page: 页码
         page_size: 每页数量
         username: 用户名称搜索
+        nickname: 昵称搜索
         email: 邮箱地址搜索
         dept_id: 部门ID搜索
 
@@ -40,6 +42,8 @@ async def list_user(
     q = Q()
     if username:
         q &= Q(username__contains=username)
+    if nickname:
+        q &= Q(nickname__contains=nickname)
     if email:
         q &= Q(email__contains=email)
     if dept_id is not None:
@@ -97,12 +101,23 @@ async def create_user(
         创建结果
 
     Raises:
-        ValidationError: 当用户邮箱已存在时抛出
+        ValidationError: 当用户邮箱或用户名已存在时抛出
     """
-    user = await user_controller.get_by_email(user_in.email)
-    if user:
-        raise ValidationError("该邮箱地址已被使用")
+    # 检查邮箱唯一性
+    if user_in.email:
+        existing_email_user = await user_controller.get_by_email(user_in.email)
+        if existing_email_user:
+            raise ValidationError("该邮箱地址已被使用")
 
+    # 检查用户名唯一性
+    existing_username_user = await user_controller.get_by_username(user_in.username)
+    if existing_username_user:
+        raise ValidationError("该用户名已被使用")
+
+    # 使用create_dict方法获取创建数据
+    create_data = user_in.create_dict()
+    
+    # 创建用户（user_controller.create_user会处理密码加密）
     new_user = await user_controller.create_user(obj_in=user_in)
     if not new_user:
         raise ValidationError("用户创建失败")
@@ -129,13 +144,37 @@ async def update_user(
 
     Raises:
         AuthenticationError: 当用户不存在时抛出
+        ValidationError: 当邮箱已被其他用户使用时抛出
     """
-    user = await user_controller.update(id=user_in.id, obj_in=user_in)
-    if not user:
-        raise AuthenticationError("用户更新失败或用户不存在")
+    # 检查用户是否存在
+    existing_user = await user_controller.get(id=user_in.id)
+    if not existing_user:
+        raise AuthenticationError("用户不存在")
 
-    # 处理角色关联
-    if user_in.role_ids:
+    # 检查邮箱唯一性（如果更新了邮箱）
+    if user_in.email:
+        email_user = await user_controller.get_by_email(user_in.email)
+        if email_user and email_user.id != user_in.id:
+            raise ValidationError("该邮箱地址已被其他用户使用")
+
+    # 使用update_dict方法获取要更新的数据，排除role_ids
+    update_data = user_in.update_dict()
+    
+    # 如果有密码更新，需要加密
+    if "password" in update_data and update_data["password"]:
+        from app.utils.password import get_password_hash
+        update_data["password"] = get_password_hash(update_data["password"])
+    
+    # 更新用户基本信息
+    if update_data:  # 只有在有数据需要更新时才调用update
+        user = await user_controller.update(id=user_in.id, obj_in=update_data)
+        if not user:
+            raise AuthenticationError("用户更新失败")
+    else:
+        user = existing_user
+
+    # 处理角色关联（支持设置为空数组来清空角色）
+    if user_in.role_ids is not None:  # 使用 is not None 来区分None和空数组
         await user_controller.update_roles(user, user_in.role_ids)
 
     return Success(msg="更新成功")

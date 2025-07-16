@@ -328,7 +328,12 @@ async def update_user_profile(req_in: ProfileUpdate):
     update_data = req_in.update_dict()
     if update_data:
         for key, value in update_data.items():
-            if hasattr(user, key) and value is not None:
+            if hasattr(user, key):
+                # 检查字段是否允许null值
+                field = user._meta.fields_map.get(key)
+                if field and value is None and not field.null:
+                    # 如果字段不允许null且值为None，则跳过更新该字段
+                    continue
                 setattr(user, key, value)
         await user.save()
 

@@ -1,0 +1,683 @@
+# React 样式和 UI 开发规范
+
+## 🎨 技术栈概览
+
+本项目采用 **Tailwind CSS 4 + Ant Design 5** 的混合样式方案，提供现代化的 UI 体验。
+
+### 核心技术
+
+- **Tailwind CSS 4.1.11** - 原子化 CSS 框架
+- **Ant Design 5.26.5** - 企业级 UI 组件库
+- **CSS-in-JS** - 组件级样式封装
+- **响应式设计** - 移动优先的设计理念
+
+### 样式文件结构
+
+- [react-web/src/index.css](mdc:react-web/src/index.css) - 全局样式和 Tailwind 基础配置
+
+## 🔧 Tailwind CSS 使用规范
+
+### 1. 基础配置
+
+参考: [react-web/vite.config.js](mdc:react-web/vite.config.js) 中的 Tailwind 插件配置
+
+```javascript
+import tailwindcss from "@tailwindcss/vite";
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  // ...
+});
+```
+
+### 2. 原子化类名使用
+
+```jsx
+// ✅ 推荐：使用原子化类名
+const Card = ({ children, className = "" }) => {
+  return (
+    <div
+      className={`
+      bg-white 
+      dark:bg-gray-800 
+      rounded-lg 
+      shadow-md 
+      hover:shadow-lg 
+      transition-shadow 
+      duration-200 
+      p-6 
+      border 
+      border-gray-200 
+      dark:border-gray-700
+      ${className}
+    `}
+    >
+      {children}
+    </div>
+  );
+};
+
+// ❌ 避免：内联样式
+const Card = ({ children }) => {
+  return (
+    <div
+      style={{
+        backgroundColor: "white",
+        borderRadius: "8px",
+        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+        padding: "24px",
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+```
+
+### 3. 响应式设计
+
+```jsx
+const ResponsiveLayout = () => {
+  return (
+    <div
+      className="
+      container 
+      mx-auto 
+      px-4 
+      sm:px-6 
+      lg:px-8
+    "
+    >
+      <div
+        className="
+        grid 
+        grid-cols-1 
+        sm:grid-cols-2 
+        lg:grid-cols-3 
+        xl:grid-cols-4 
+        gap-4 
+        sm:gap-6 
+        lg:gap-8
+      "
+      >
+        {/* 网格项目 */}
+      </div>
+    </div>
+  );
+};
+```
+
+### 4. 颜色系统
+
+```jsx
+// 主色调使用
+const PrimaryButton = () => (
+  <button
+    className="
+    bg-blue-600 
+    hover:bg-blue-700 
+    active:bg-blue-800 
+    text-white 
+    font-medium 
+    py-2 
+    px-4 
+    rounded-md 
+    transition-colors 
+    duration-150
+  "
+  >
+    主要按钮
+  </button>
+);
+
+// 状态颜色
+const StatusIndicators = () => (
+  <div className="space-y-2">
+    <div className="text-green-600 bg-green-50 p-2 rounded">成功状态</div>
+    <div className="text-yellow-600 bg-yellow-50 p-2 rounded">警告状态</div>
+    <div className="text-red-600 bg-red-50 p-2 rounded">错误状态</div>
+    <div className="text-blue-600 bg-blue-50 p-2 rounded">信息状态</div>
+  </div>
+);
+```
+
+### 5. 布局工具类
+
+```jsx
+// Flexbox 布局
+const FlexLayout = () => (
+  <div
+    className="
+    flex 
+    flex-col 
+    sm:flex-row 
+    items-center 
+    justify-between 
+    space-y-4 
+    sm:space-y-0 
+    sm:space-x-4
+  "
+  >
+    <div>左侧内容</div>
+    <div>右侧内容</div>
+  </div>
+);
+
+// Grid 布局
+const GridLayout = () => (
+  <div
+    className="
+    grid 
+    grid-cols-12 
+    gap-4
+  "
+  >
+    <div className="col-span-12 md:col-span-8">主内容</div>
+    <div className="col-span-12 md:col-span-4">侧边栏</div>
+  </div>
+);
+```
+
+## 🧩 Ant Design 集成规范
+
+### 1. 主题配置
+
+参考: [react-web/src/App.jsx](mdc:react-web/src/App.jsx) 中的主题配置
+
+```jsx
+import { ConfigProvider } from "antd";
+import zhCN from "antd/locale/zh_CN";
+
+function App() {
+  return (
+    <ConfigProvider
+      locale={zhCN}
+      theme={{
+        token: {
+          colorPrimary: "#1890ff",
+          borderRadius: 8,
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        },
+        components: {
+          Button: {
+            borderRadius: 6,
+          },
+          Card: {
+            borderRadius: 8,
+          },
+        },
+      }}
+    >
+      {/* 应用内容 */}
+    </ConfigProvider>
+  );
+}
+```
+
+### 2. 组件使用规范
+
+```jsx
+import { Button, Card, Table, Form, Input, Space, Divider } from "antd";
+
+// 表格组件
+const DataTable = ({ data, loading }) => {
+  const columns = [
+    {
+      title: "姓名",
+      dataIndex: "name",
+      key: "name",
+      sorter: true,
+    },
+    {
+      title: "操作",
+      key: "action",
+      render: (_, record) => (
+        <Space size="middle">
+          <Button type="link" size="small">
+            编辑
+          </Button>
+          <Button type="link" danger size="small">
+            删除
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <Card title="数据列表" className="mt-4">
+      <Table
+        columns={columns}
+        dataSource={data}
+        loading={loading}
+        rowKey="id"
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total, range) =>
+            `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
+        }}
+      />
+    </Card>
+  );
+};
+```
+
+### 3. 表单设计
+
+```jsx
+const UserForm = ({ initialValues, onSubmit }) => {
+  const [form] = Form.useForm();
+
+  return (
+    <Form
+      form={form}
+      layout="vertical"
+      initialValues={initialValues}
+      onFinish={onSubmit}
+      className="max-w-md mx-auto"
+    >
+      <Form.Item
+        name="username"
+        label="用户名"
+        rules={[
+          { required: true, message: "请输入用户名" },
+          { min: 3, message: "用户名至少3个字符" },
+        ]}
+      >
+        <Input placeholder="请输入用户名" />
+      </Form.Item>
+
+      <Form.Item
+        name="email"
+        label="邮箱"
+        rules={[
+          { required: true, message: "请输入邮箱" },
+          { type: "email", message: "邮箱格式不正确" },
+        ]}
+      >
+        <Input placeholder="请输入邮箱" />
+      </Form.Item>
+
+      <Form.Item className="mb-0 pt-4">
+        <Button type="primary" htmlType="submit" block>
+          提交
+        </Button>
+      </Form.Item>
+    </Form>
+  );
+};
+```
+
+### 4. 布局组件
+
+```jsx
+import { Layout, Menu, Breadcrumb } from "antd";
+const { Header, Content, Sider } = Layout;
+
+const AppLayout = ({ children }) => {
+  return (
+    <Layout className="min-h-screen">
+      <Sider width={256} className="bg-white shadow-sm" collapsible>
+        <div className="h-16 flex items-center justify-center border-b">
+          <img src="/logo.svg" alt="Logo" className="h-8" />
+        </div>
+        <Menu mode="inline" defaultSelectedKeys={["1"]} className="border-r-0">
+          {/* 菜单项 */}
+        </Menu>
+      </Sider>
+
+      <Layout>
+        <Header className="bg-white shadow-sm px-6 flex items-center justify-between">
+          <Breadcrumb />
+          <div>用户操作区</div>
+        </Header>
+
+        <Content className="p-6 bg-gray-50">
+          <div className="bg-white rounded-lg shadow-sm p-6">{children}</div>
+        </Content>
+      </Layout>
+    </Layout>
+  );
+};
+```
+
+## 🌗 暗色主题支持
+
+### 1. 主题切换
+
+```jsx
+import { ConfigProvider, theme } from "antd";
+
+const ThemeProvider = ({ children, isDark }) => {
+  return (
+    <ConfigProvider
+      theme={{
+        algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
+        token: {
+          colorPrimary: "#1890ff",
+        },
+      }}
+    >
+      <div className={isDark ? "dark" : ""}>{children}</div>
+    </ConfigProvider>
+  );
+};
+```
+
+### 2. 暗色模式样式
+
+```jsx
+const ThemeAwareCard = ({ children }) => (
+  <div
+    className="
+    bg-white 
+    dark:bg-gray-800 
+    text-gray-900 
+    dark:text-gray-100 
+    border 
+    border-gray-200 
+    dark:border-gray-700 
+    rounded-lg 
+    shadow-sm 
+    p-6
+  "
+  >
+    {children}
+  </div>
+);
+```
+
+## 📱 响应式设计规范
+
+### 1. 断点系统
+
+```jsx
+// Tailwind 默认断点
+const breakpoints = {
+  sm: "640px", // 小屏幕
+  md: "768px", // 中屏幕
+  lg: "1024px", // 大屏幕
+  xl: "1280px", // 超大屏幕
+  "2xl": "1536px", // 超超大屏幕
+};
+
+// 响应式组件
+const ResponsiveNav = () => (
+  <nav
+    className="
+    hidden 
+    md:flex 
+    space-x-6
+  "
+  >
+    {/* 桌面端导航 */}
+  </nav>
+);
+
+const MobileNav = () => (
+  <nav
+    className="
+    md:hidden 
+    space-y-2
+  "
+  >
+    {/* 移动端导航 */}
+  </nav>
+);
+```
+
+### 2. 移动优先设计
+
+```jsx
+const MobileFirstCard = () => (
+  <div
+    className="
+    p-4 
+    sm:p-6 
+    lg:p-8 
+    text-sm 
+    sm:text-base 
+    lg:text-lg
+  "
+  >
+    <h2
+      className="
+      text-lg 
+      sm:text-xl 
+      lg:text-2xl 
+      font-bold 
+      mb-4
+    "
+    >
+      响应式标题
+    </h2>
+
+    <div
+      className="
+      grid 
+      grid-cols-1 
+      sm:grid-cols-2 
+      lg:grid-cols-3 
+      gap-4
+    "
+    >
+      {/* 响应式网格 */}
+    </div>
+  </div>
+);
+```
+
+## 🎯 组件样式最佳实践
+
+### 1. 样式组合
+
+```jsx
+import { cn } from '@/utils/classNames'; // 类名合并工具
+
+const Button = ({
+  variant = 'primary',
+  size = 'medium',
+  className,
+  children,
+  ...props
+}) => {
+  const baseClasses = "
+    inline-flex
+    items-center
+    justify-center
+    rounded-md
+    font-medium
+    transition-colors
+    focus:outline-none
+    focus:ring-2
+    focus:ring-offset-2
+  ";
+
+  const variantClasses = {
+    primary: "bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500",
+    secondary: "bg-gray-200 hover:bg-gray-300 text-gray-900 focus:ring-gray-500",
+    outline: "border border-gray-300 hover:bg-gray-50 text-gray-700 focus:ring-blue-500"
+  };
+
+  const sizeClasses = {
+    small: "px-3 py-1.5 text-sm",
+    medium: "px-4 py-2 text-base",
+    large: "px-6 py-3 text-lg"
+  };
+
+  return (
+    <button
+      className={cn(
+        baseClasses,
+        variantClasses[variant],
+        sizeClasses[size],
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+```
+
+### 2. 状态样式
+
+```jsx
+const InteractiveCard = ({ isSelected, isDisabled, children }) => (
+  <div
+    className={cn(
+      // 基础样式
+      "rounded-lg border p-4 transition-all duration-200",
+
+      // 状态样式
+      {
+        "border-blue-500 bg-blue-50": isSelected,
+        "border-gray-200 bg-white hover:bg-gray-50": !isSelected && !isDisabled,
+        "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed": isDisabled,
+      }
+    )}
+  >
+    {children}
+  </div>
+);
+```
+
+### 3. 动画和过渡
+
+```jsx
+const AnimatedModal = ({ isOpen, children }) => (
+  <div
+    className={cn(
+      "fixed inset-0 z-50 flex items-center justify-center",
+      "transition-opacity duration-300",
+      {
+        "opacity-100 pointer-events-auto": isOpen,
+        "opacity-0 pointer-events-none": !isOpen,
+      }
+    )}
+  >
+    <div className="fixed inset-0 bg-black bg-opacity-50" />
+
+    <div
+      className={cn(
+        "relative bg-white rounded-lg shadow-xl",
+        "transform transition-all duration-300",
+        {
+          "scale-100 translate-y-0": isOpen,
+          "scale-95 -translate-y-4": !isOpen,
+        }
+      )}
+    >
+      {children}
+    </div>
+  </div>
+);
+```
+
+## 🔧 工具函数和辅助
+
+### 1. 类名合并工具
+
+```javascript
+// utils/classNames.js
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export const cn = (...inputs) => {
+  return twMerge(clsx(inputs));
+};
+
+// 使用示例
+const className = cn(
+  "base-class",
+  condition && "conditional-class",
+  {
+    "state-class": isActive,
+  },
+  customClassName
+);
+```
+
+### 2. 响应式工具
+
+```javascript
+// hooks/useBreakpoint.js
+import { useState, useEffect } from "react";
+
+export const useBreakpoint = () => {
+  const [breakpoint, setBreakpoint] = useState("lg");
+
+  useEffect(() => {
+    const updateBreakpoint = () => {
+      const width = window.innerWidth;
+      if (width < 640) setBreakpoint("sm");
+      else if (width < 768) setBreakpoint("md");
+      else if (width < 1024) setBreakpoint("lg");
+      else if (width < 1280) setBreakpoint("xl");
+      else setBreakpoint("2xl");
+    };
+
+    updateBreakpoint();
+    window.addEventListener("resize", updateBreakpoint);
+    return () => window.removeEventListener("resize", updateBreakpoint);
+  }, []);
+
+  return breakpoint;
+};
+```
+
+## 🎨 设计系统规范
+
+### 1. 颜色规范
+
+- **主色**: Blue (#1890ff)
+- **成功**: Green (#52c41a)
+- **警告**: Orange (#fa8c16)
+- **错误**: Red (#ff4d4f)
+- **中性**: Gray (#d9d9d9)
+
+### 2. 字体规范
+
+- **标题**: 16px / 18px / 20px / 24px
+- **正文**: 14px / 16px
+- **小字**: 12px
+- **字重**: 400 (正常) / 500 (中等) / 600 (半粗) / 700 (粗体)
+
+### 3. 间距规范
+
+- **最小间距**: 4px (space-1)
+- **小间距**: 8px (space-2)
+- **中等间距**: 16px (space-4)
+- **大间距**: 24px (space-6)
+- **超大间距**: 32px (space-8)
+
+### 4. 圆角规范
+
+- **小圆角**: 4px (rounded)
+- **中等圆角**: 6px (rounded-md)
+- **大圆角**: 8px (rounded-lg)
+- **完全圆角**: 50% (rounded-full)
+
+## 🚀 性能优化
+
+### 1. CSS 优化
+
+- 使用 Tailwind 的 JIT 模式，只生成使用的样式
+- 避免重复的样式定义
+- 合理使用 CSS-in-JS，避免运行时样式计算
+
+### 2. 组件优化
+
+- 使用 React.memo 优化样式重的组件
+- 避免内联样式对象，使用类名或常量
+- 合理使用 CSS 变量处理主题切换
+
+### 3. 打包优化
+
+- 配置 Tailwind 的 purge 选项清理未使用的样式
+- 使用 CSS 代码分割，按需加载样式
+- 压缩和优化 CSS 文件大小

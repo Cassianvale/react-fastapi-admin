@@ -1,0 +1,128 @@
+# React Web 项目架构规范
+
+这是一个基于 **React 18 + Ant Design 5 + Tailwind CSS 4 + Vite 7** 构建的现代化管理系统前端。
+
+## 🏗️ 核心架构模式
+
+### 技术栈组成
+
+- **React 18.3.1** - 最新的 React 框架，使用函数式组件 + Hooks
+- **Ant Design 5.26.5** - 企业级 UI 组件库
+- **Tailwind CSS 4.1.11** - 原子化 CSS 框架
+- **Vite 7.0.4** - 新一代前端构建工具
+- **React Router Dom** - 客户端路由管理
+- **Axios** - HTTP 请求库
+
+### 项目结构说明
+
+#### 入口文件
+
+- [react-web/src/main.jsx](mdc:react-web/src/main.jsx) - 应用入口点
+- [react-web/src/App.jsx](mdc:react-web/src/App.jsx) - 根组件，配置 Ant Design 主题和国际化
+
+#### 核心目录结构
+
+##### `/react-web/src/api` - API 接口层
+
+- [react-web/src/api/index.js](mdc:react-web/src/api/index.js) - 统一 API 接口定义
+- 与 FastAPI 后端的接口对接配置
+
+##### `/react-web/src/components` - 公共组件层
+
+- [react-web/src/components/Layout/](mdc:react-web/src/components/Layout/) - 主布局组件
+- [react-web/src/components/ProtectedRoute.jsx](mdc:react-web/src/components/ProtectedRoute.jsx) - 路由守卫组件
+- [react-web/src/components/LoginRedirect.jsx](mdc:react-web/src/components/LoginRedirect.jsx) - 登录重定向组件
+
+##### `/react-web/src/pages` - 页面组件层
+
+- [react-web/src/pages/Login/](mdc:react-web/src/pages/Login/) - 登录页面
+- [react-web/src/pages/Dashboard/](mdc:react-web/src/pages/Dashboard/) - 工作台页面
+- [react-web/src/pages/UserManagement/](mdc:react-web/src/pages/UserManagement/) - 用户管理页面
+- [react-web/src/pages/Profile/](mdc:react-web/src/pages/Profile/) - 个人中心页面
+
+##### `/react-web/src/router` - 路由配置层
+
+- [react-web/src/router/index.jsx](mdc:react-web/src/router/index.jsx) - 路由定义和配置
+
+##### `/react-web/src/hooks` - 自定义 Hooks
+
+- [react-web/src/hooks/useErrorHandler.js](mdc:react-web/src/hooks/useErrorHandler.js) - 错误处理 Hook
+
+##### `/react-web/src/utils` - 工具函数层
+
+- [react-web/src/utils/request.js](mdc:react-web/src/utils/request.js) - HTTP 请求封装
+- [react-web/src/utils/errorHandler.js](mdc:react-web/src/utils/errorHandler.js) - 错误处理工具
+- [react-web/src/utils/errorInit.js](mdc:react-web/src/utils/errorInit.js) - 错误处理初始化
+
+##### `/react-web/src/assets` - 静态资源
+
+- 图片、图标等静态资源文件
+
+## 🔧 构建配置
+
+### Vite 配置 ([react-web/vite.config.js](mdc:react-web/vite.config.js))
+
+- **路径别名**: `@` 指向 `src` 目录
+- **代理配置**: `/api` 代理到 FastAPI 后端 `http://localhost:9999`
+- **插件配置**: React SWC + Tailwind CSS
+
+### 包管理 ([react-web/package.json](mdc:react-web/package.json))
+
+- 使用 npm/pnpm 进行依赖管理
+- 开发、构建、预览等脚本配置
+
+## 🎯 开发规范
+
+### 组件开发原则
+
+1. **函数式组件优先**: 使用 React Hooks 代替类组件
+2. **组件职责单一**: 每个组件专注于特定功能
+3. **Props 类型验证**: 明确组件的输入输出接口
+4. **状态管理**: 合理使用 useState, useEffect 等 Hooks
+
+### 样式规范
+
+1. **Tailwind CSS 优先**: 使用原子化 CSS 类进行样式开发
+2. **Ant Design 配合**: 使用 Ant Design 组件和主题系统
+3. **响应式设计**: 支持桌面端、平板端、移动端适配
+4. **主题一致性**: 遵循统一的设计语言和色彩规范
+
+### API 集成规范
+
+1. **统一请求封装**: 通过 [react-web/src/utils/request.js](mdc:react-web/src/utils/request.js) 处理所有 HTTP 请求
+2. **错误处理机制**: 使用 [react-web/src/hooks/useErrorHandler.js](mdc:react-web/src/hooks/useErrorHandler.js) 统一处理错误
+3. **认证流程**: Token 管理和自动续期机制
+4. **接口代理**: 通过 Vite 代理访问 FastAPI 后端接口
+
+### 路由管理规范
+
+1. **路由守卫**: 使用 [react-web/src/components/ProtectedRoute.jsx](mdc:react-web/src/components/ProtectedRoute.jsx) 进行权限控制
+2. **嵌套路由**: 支持多层级路由结构
+3. **懒加载**: 页面组件支持代码分割和懒加载
+
+## 🔐 认证和权限
+
+### 认证流程
+
+1. 用户登录获取 JWT Token
+2. Token 存储到 localStorage
+3. 请求拦截器自动添加 Authorization 头
+4. 响应拦截器处理认证失效
+
+### 权限控制
+
+- 路由级权限控制
+- 组件级权限显示/隐藏
+- API 接口权限验证
+
+## 📱 响应式设计
+
+- **桌面端**: 完整的布局和功能
+- **平板端**: 适配中等屏幕尺寸
+- **移动端**: 优化的移动体验
+
+## 🔗 与后端集成
+
+- FastAPI 后端运行在 `http://localhost:9999`
+- 通过 Vite 代理转发 API 请求
+- 统一的接口规范和错误处理

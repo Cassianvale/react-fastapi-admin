@@ -64,7 +64,6 @@ const Login = () => {
           <Form
             name="login"
             onFinish={onFinish}
-            autoComplete="off"
             size="large"
             className="space-y-4"
             initialValues={{
@@ -83,6 +82,7 @@ const Login = () => {
                 prefix={<UserOutlined className="text-gray-400" />}
                 placeholder="用户名"
                 className="rounded-lg border-gray-200 hover:border-blue-400 focus:border-blue-500"
+                autoComplete="username"
               />
             </Form.Item>
 
@@ -97,6 +97,7 @@ const Login = () => {
                 prefix={<LockOutlined className="text-gray-400" />}
                 placeholder="密码"
                 className="rounded-lg border-gray-200 hover:border-blue-400 focus:border-blue-500"
+                autoComplete="current-password"
               />
             </Form.Item>
 

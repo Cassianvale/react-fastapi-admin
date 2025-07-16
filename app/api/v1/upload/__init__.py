@@ -1,6 +1,8 @@
 from fastapi import APIRouter
-from app.api.v1.upload.upload import router as upload_router
 
-router = APIRouter(prefix="/upload", tags=["文件上传"])
+from .upload import router
 
-router.include_router(upload_router) 
+upload_router = APIRouter()
+upload_router.include_router(router, tags=["文件上传"])
+
+__all__ = ["upload_router"]
