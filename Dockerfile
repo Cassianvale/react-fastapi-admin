@@ -1,13 +1,13 @@
 FROM node:18.12.0-alpine3.16 AS web
 
-WORKDIR /opt/vue-fastapi-admin
+WORKDIR /opt/react-fastapi-admin
 COPY /web ./web
-RUN cd /opt/vue-fastapi-admin/web && npm i --registry=https://registry.npmmirror.com && npm run build
+RUN cd /opt/react-fastapi-admin/web && npm i --registry=https://registry.npmmirror.com && npm run build
 
 
 FROM python:3.11-slim-bullseye
 
-WORKDIR /opt/vue-fastapi-admin
+WORKDIR /opt/react-fastapi-admin
 ADD . .
 COPY /deploy/entrypoint.sh .
 
@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=core-apt \
 
 RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-COPY --from=web /opt/vue-fastapi-admin/web/dist /opt/vue-fastapi-admin/web/dist
+COPY --from=web /opt/react-fastapi-admin/web/dist /opt/react-fastapi-admin/web/dist
 ADD /deploy/web.conf /etc/nginx/sites-available/web.conf
 RUN rm -f /etc/nginx/sites-enabled/default \ 
     && ln -s /etc/nginx/sites-available/web.conf /etc/nginx/sites-enabled/ 

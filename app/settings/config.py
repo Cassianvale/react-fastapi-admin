@@ -27,9 +27,9 @@ class Settings(BaseSettings):
     # 基础应用配置
     APP_ENV: str = Field(default="development", description="应用环境")
     VERSION: str = Field(default="0.1.0", description="应用版本")
-    APP_TITLE: str = Field(default="Vue FastAPI Admin", description="应用标题")
-    PROJECT_NAME: str = Field(default="Vue FastAPI Admin", description="项目名称")
-    APP_DESCRIPTION: str = Field(default="Vue FastAPI Admin Description", description="应用描述")
+    APP_TITLE: str = Field(default="React FastAPI Admin", description="应用标题")
+    PROJECT_NAME: str = Field(default="React FastAPI Admin", description="项目名称")
+    APP_DESCRIPTION: str = Field(default="React FastAPI Admin Description", description="应用描述")
     DEBUG: bool = Field(default=True, description="调试模式")
 
     # CORS 配置
@@ -55,8 +55,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = Field(default="HS256", description="JWT 算法")
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60 * 24 * 7, description="JWT 访问令牌过期时间（分钟）")
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=30, description="JWT 刷新令牌过期时间（天）")
-    JWT_AUDIENCE: str = Field(default="vue-fastapi-admin", description="JWT 受众")
-    JWT_ISSUER: str = Field(default="vue-fastapi-admin", description="JWT 签发者")
+    JWT_AUDIENCE: str = Field(default="react-fastapi-admin", description="JWT 受众")
+    JWT_ISSUER: str = Field(default="react-fastapi-admin", description="JWT 签发者")
 
     # IP 白名单配置
     IP_WHITELIST_STR: str = Field(default="", description="IP 白名单字符串")

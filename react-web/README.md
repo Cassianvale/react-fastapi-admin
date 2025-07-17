@@ -1,4 +1,4 @@
-# Vue FastAPI Admin - React 前端
+# React FastAPI Admin - React 前端
 
 一个基于 **React 18 + Ant Design 5 + Tailwind CSS 4 + Vite 7** 构建的现代化管理系统前端。
 

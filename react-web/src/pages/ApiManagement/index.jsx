@@ -293,14 +293,13 @@ const ApiManagement = () => {
             <h1 className="text-2xl font-bold text-gray-800">API管理</h1>
             <Tooltip
               title={
-                <div className="text-sm">
+                <div className="text-sm max-w-sm">
                   <div className="font-medium mb-1">API管理说明：</div>
                   <div>点击'刷新API'按钮可以自动从系统中扫描所有API接口并同步到数据库。</div>
                   <div>手动添加的API接口主要用于权限控制配置。</div>
                 </div>
               }
               placement="right"
-              overlayStyle={{ maxWidth: 350 }}
             >
               <QuestionCircleOutlined className="ml-2 text-gray-400 hover:text-blue-500 cursor-help text-base" />
             </Tooltip>

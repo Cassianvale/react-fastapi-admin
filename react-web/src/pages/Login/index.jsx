@@ -56,7 +56,7 @@ const Login = () => {
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
               <LoginOutlined className="text-2xl text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">Vue FastAPI Admin</h1>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">React FastAPI Admin</h1>
             <p className="text-gray-500">欢迎回来，请登录您的账户</p>
           </div>
 
@@ -121,7 +121,7 @@ const Login = () => {
 
         {/* 版权信息 */}
         <div className="text-center mt-8 text-sm text-gray-400">
-          <p>© 2024 Vue FastAPI Admin. 基于 React + Ant Design + Tailwind CSS</p>
+          <p>© 2025 React FastAPI Admin. 基于 React + Ant Design + Tailwind CSS</p>
         </div>
       </div>
     </div>

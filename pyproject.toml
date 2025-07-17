@@ -1,7 +1,7 @@
 [project]
-name = "vue-fastapi-admin"
+name = "react-fastapi-admin"
 version = "0.1.0"
-description = "Vue Fastapi admin"
+description = "React Fastapi admin"
 requires-python = ">=3.11"
 dependencies = [
     # 核心框架

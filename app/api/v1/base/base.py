@@ -170,7 +170,7 @@ async def get_user_menu():
     获取当前用户的菜单权限
 
     Returns:
-        用户有权限的菜单树结构
+        用户有权限的菜单树结构（不包含隐藏菜单）
 
     Raises:
         AuthenticationError: 当用户不存在时抛出
@@ -185,21 +185,21 @@ async def get_user_menu():
 
     menus: list[Menu] = []
 
-    # 超级用户获取所有菜单
+    # 超级用户获取所有非隐藏菜单
     if user_obj.is_superuser:
-        menus = await Menu.all()
+        menus = await Menu.filter(is_hidden=False).all()
     else:
-        # 普通用户根据角色获取菜单
+        # 普通用户根据角色获取非隐藏菜单
         role_objs: list[Role] = await user_obj.roles
         if role_objs:
             for role_obj in role_objs:
-                menu_list = await role_obj.menus
+                menu_list = await role_obj.menus.filter(is_hidden=False)
                 if menu_list:
                     menus.extend(menu_list)
             # 去重
             menus = list(set(menus))
 
-    # 获取父级菜单
+    # 获取父级菜单（只包含非隐藏菜单）
     parent_menus: list[Menu] = []
     for menu in menus:
         if menu.parent_id == 0:
@@ -211,7 +211,7 @@ async def get_user_menu():
         parent_menu_dict = await parent_menu.to_dict()
         parent_menu_dict["children"] = []
 
-        # 添加子菜单
+        # 添加子菜单（只包含非隐藏菜单）
         for menu in menus:
             if menu.parent_id == parent_menu.id:
                 parent_menu_dict["children"].append(await menu.to_dict())

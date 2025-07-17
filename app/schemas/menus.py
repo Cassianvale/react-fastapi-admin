@@ -24,33 +24,33 @@ class BaseMenu(BaseModel):
     keepalive: bool
     redirect: Optional[str]
     children: Optional[list["BaseMenu"]]
-    
+
     class Config:
         from_attributes = True
 
 
 class MenuCreate(BaseModel):
-    menu_type: MenuType = Field(default=MenuType.CATALOG.value)
-    name: str = Field(example="用户管理")
+    menu_type: MenuType = MenuType.CATALOG
+    name: str
     icon: Optional[str] = "ph:user-list-bold"
-    path: str = Field(example="/system/user")
-    order: Optional[int] = Field(example=1)
-    parent_id: Optional[int] = Field(example=0, default=0)
+    path: str
+    order: Optional[int] = 1
+    parent_id: Optional[int] = 0
     is_hidden: Optional[bool] = False
-    component: str = Field(default="Layout", example="/system/user")
+    component: str = "Layout"
     keepalive: Optional[bool] = True
     redirect: Optional[str] = ""
 
 
 class MenuUpdate(BaseModel):
     id: int
-    menu_type: Optional[MenuType] = Field(example=MenuType.CATALOG.value)
-    name: Optional[str] = Field(example="用户管理")
+    menu_type: Optional[MenuType] = None
+    name: Optional[str] = None
     icon: Optional[str] = "ph:user-list-bold"
-    path: Optional[str] = Field(example="/system/user")
-    order: Optional[int] = Field(example=1)
-    parent_id: Optional[int] = Field(example=0)
+    path: Optional[str] = None
+    order: Optional[int] = None
+    parent_id: Optional[int] = None
     is_hidden: Optional[bool] = False
-    component: str = Field(example="/system/user")
+    component: Optional[str] = None
     keepalive: Optional[bool] = False
     redirect: Optional[str] = ""

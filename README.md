@@ -1,73 +1,21 @@
 <p align="center">
-  <a href="https://github.com/mizhexiaoxiao/vue-fastapi-admin">
-    <img alt="Vue FastAPI Admin Logo" width="200" src="https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/logo.svg">
-  </a>
+
 </p>
 
-<h1 align="center">vue-fastapi-admin</h1>
+<h1 align="center">react-fastapi-admin</h1>
 
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-blue">
   <img alt="License" src="https://img.shields.io/badge/License-MIT-blue">
 </p>
 
-基于 FastAPI + Vue3 + Naive UI 的现代化前后端分离开发平台，采用 Granian 高性能服务器、Tortoise ORM 异步数据库、Aerich 数据库迁移和 Loguru 智能日志系统，融合了 RBAC 权限管理、动态路由和 JWT 鉴权，助力中小型应用快速搭建，也可用于学习参考。
-
-### 特性
-
-- **现代化技术栈**：
-  - **后端框架**：基于 Python 3.11 和 FastAPI 高性能异步框架
-  - **数据库 ORM**：使用 Tortoise ORM 异步数据库，配合 Aerich 进行数据库迁移管理
-  - **ASGI 服务器**：采用 Granian 高性能 ASGI 服务器，支持热重载和优化的生产环境部署
-  - **日志系统**：集成 Loguru 现代化日志库，提供结构化日志记录和丰富的日志管理功能
-  - **前端技术**：Vue3 + Vite + Naive UI + Pinia，配合高效的包管理器 pnpm
-- **企业级特性**：
-  - **数据库迁移**：使用 Aerich 实现版本化数据库迁移，支持多种数据库（SQLite、MySQL、PostgreSQL）
-  - **智能日志**：基于 Loguru 的多级日志系统，支持日志轮转、压缩和结构化输出
-  - **高性能服务**：Granian 服务器提供优异的并发性能和内存效率
-- **代码规范**：项目内置丰富的规范插件，确保代码质量和一致性，有效提高团队协作效率。
-- **动态路由**：后端动态路由，结合 RBAC（Role-Based Access Control）权限模型，提供精细的菜单路由控制。
-- **JWT 鉴权**：使用 JSON Web Token（JWT）进行身份验证和授权，增强应用的安全性。
-- **细粒度权限控制**：实现按钮和接口级别的权限控制，确保不同用户或角色在界面操作和接口访问时具有不同的权限限制。
-- **完整审计日志**：记录所有用户操作和系统活动，提供完整的操作追踪和审计功能。
-
-### 在线预览
-
-- http://vue-fastapi-admin.com
-- username: admin
-- password: 123456
-
-### 登录页
-
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/login.jpg)
-
-### 工作台
-
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/workbench.jpg)
-
-### 用户管理
-
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/user.jpg)
-
-### 角色管理
-
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/role.jpg)
-
-### 菜单管理
-
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/menu.jpg)
-
-### API 管理
-
-![image](https://github.com/mizhexiaoxiao/vue-fastapi-admin/blob/main/deploy/sample-picture/api.jpg)
-
 ### 快速开始
 
 #### 方法一：dockerhub 拉取镜像
 
 ```sh
-docker pull mizhexiaoxiao/vue-fastapi-admin:latest
-docker run -d --restart=always --name=vue-fastapi-admin -p 9999:80 mizhexiaoxiao/vue-fastapi-admin
+docker pull mizhexiaoxiao/react-fastapi-admin:latest
+docker run -d --restart=always --name=react-fastapi-admin -p 9999:80 mizhexiaoxiao/react-fastapi-admin
 ```
 
 #### 方法二：dockerfile 构建镜像
@@ -82,15 +30,15 @@ systemctl start docker
 ##### 构建镜像
 
 ```sh
-git clone https://github.com/mizhexiaoxiao/vue-fastapi-admin.git
-cd vue-fastapi-admin
-docker build --no-cache . -t vue-fastapi-admin
+git clone https://github.com/mizhexiaoxiao/react-fastapi-admin.git
+cd react-fastapi-admin
+docker build --no-cache . -t react-fastapi-admin
 ```
 
 ##### 启动容器
 
 ```sh
-docker run -d --restart=always --name=vue-fastapi-admin -p 9999:80 vue-fastapi-admin
+docker run -d --restart=always --name=react-fastapi-admin -p 9999:80 react-fastapi-admin
 ```
 
 ##### 访问

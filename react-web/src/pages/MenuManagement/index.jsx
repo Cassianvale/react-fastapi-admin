@@ -27,7 +27,8 @@ import {
   MenuOutlined,
   FolderOutlined,
   AppstoreOutlined,
-  NodeIndexOutlined
+  NodeIndexOutlined,
+  QuestionCircleOutlined
 } from '@ant-design/icons'
 import { Icon } from '@iconify/react'
 import api from '@/api'
@@ -168,9 +169,9 @@ const MenuManagement = () => {
           menu_type: editingMenu.menu_type || 'catalog',
           order: editingMenu.order || 1,
           parent_id: editingMenu.parent_id || 0,
-          is_hidden: editingMenu.is_hidden || false,
+          is_hidden: editingMenu.is_hidden ?? false,
           component: editingMenu.component || '',
-          keepalive: editingMenu.keepalive || false,
+          keepalive: editingMenu.keepalive ?? true,
           redirect: editingMenu.redirect || ''
         })
       } else {
@@ -182,7 +183,7 @@ const MenuManagement = () => {
           parent_id: parentMenuId || 0,
           is_hidden: false,
           component: 'Layout',
-          keepalive: false,
+          keepalive: true,
           redirect: ''
         })
       }
@@ -358,14 +359,45 @@ const MenuManagement = () => {
       dataIndex: 'order',
       key: 'order',
       width: 80,
-      render: (value) => (
-        <Tag color="cyan">{value}</Tag>
-      )
+      render: (value, record) => {
+        // 根据菜单层级和类型设置不同颜色
+        const getOrderTagColor = () => {
+          if (record.parent_id === 0) {
+            // 顶级菜单
+            switch (record.menu_type) {
+              case 'catalog':
+                return 'volcano' // 橙红色 - 顶级目录
+              case 'menu':
+                return 'purple' // 紫色 - 顶级菜单
+              default:
+                return 'magenta' // 洋红色 - 其他顶级
+            }
+          } else {
+            // 子菜单
+            switch (record.menu_type) {
+              case 'catalog':
+                return 'orange' // 橙色 - 子目录
+              case 'menu':
+                return 'blue' // 蓝色 - 子菜单
+              case 'button':
+                return 'cyan' // 青色 - 按钮
+              default:
+                return 'geekblue' // 极客蓝 - 其他子级
+            }
+          }
+        }
+        
+        return (
+          <Tag color={getOrderTagColor()}>
+            {value}
+          </Tag>
+        )
+      }
     },
     {
       title: '状态',
       key: 'status',
-      width: 120,
+      width: 150,
       render: (_, record) => (
         <div className="flex flex-col gap-1">
           <Tag color={record.is_hidden ? 'red' : 'green'}>
@@ -643,37 +675,6 @@ const MenuManagement = () => {
           </Row>
 
           <Row gutter={16}>
-            <Col span={12}>
-              <div className="flex space-x-10">
-                <Form.Item
-                  name="is_hidden"
-                  valuePropName="checked"
-                  className="mb-0"
-                  style={{ marginRight: 32 }}
-                >
-                  <div className="flex items-center space-x-2">
-                    <Switch size="small" />
-                    <span className="text-gray-700">隐藏菜单</span>
-                  </div>
-                </Form.Item>
-                <Form.Item
-                  name="keepalive"
-                  valuePropName="checked"
-                  className="mb-0"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Switch size="small" />
-                    <span className="text-gray-700">页面缓存</span>
-                  </div>
-                </Form.Item>
-              </div>
-            </Col>
-            <Col span={12}>
-              {/* 占位，保持布局平衡 */}
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
             <Col span={24}>
               <Form.Item
                 label="重定向路径"
@@ -681,6 +682,46 @@ const MenuManagement = () => {
               >
                 <Input placeholder="重定向路径（可选）" />
               </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={24}>
+              <div className="flex space-x-10">
+                <div className="flex items-center space-x-3">
+                  <Form.Item
+                    name="is_hidden"
+                    valuePropName="checked"
+                    style={{ margin: 0, marginRight: 10 }}
+                  >
+                    <Switch size="middle" />
+                  </Form.Item>
+                  <span className="text-gray-700">隐藏菜单</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Form.Item
+                    name="keepalive"
+                    valuePropName="checked"
+                    style={{ margin: 0, marginRight: 10 }}
+                  >
+                    <Switch size="middle" />
+                  </Form.Item>
+                  <span className="text-gray-700">页面缓存</span>
+                  <Tooltip
+                    title={
+                      <div className="text-sm max-w-sm">
+                        <div className="font-bold mb-2">页面缓存说明：</div>
+                        <div>• 启用：离开页面后再次访问时保留之前的状态（搜索条件、分页位置等）</div>
+                        <div>• 禁用：每次访问都重新加载页面，获取最新数据</div>
+                        <div>• 建议：数据管理页面启用，实时数据页面禁用</div>
+                      </div>
+                    }
+                    placement="right"
+                  >
+                    <QuestionCircleOutlined className="ml-2 text-gray-400 hover:text-blue-500 cursor-help text-base" />
+                  </Tooltip>
+                </div>
+              </div>
             </Col>
           </Row>
 
