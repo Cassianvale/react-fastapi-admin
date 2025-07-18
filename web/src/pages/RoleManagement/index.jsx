@@ -14,7 +14,6 @@ import {
   Pagination,
   Divider,
   Tooltip,
-  Drawer,
   Tree,
   Tabs
 } from 'antd'
@@ -54,7 +53,7 @@ const RoleManagement = () => {
   const [modalLoading, setModalLoading] = useState(false)
   
   // 权限配置状态
-  const [permissionDrawerVisible, setPermissionDrawerVisible] = useState(false)
+  const [permissionModalVisible, setPermissionModalVisible] = useState(false)
   const [currentRole, setCurrentRole] = useState(null)
   const [menus, setMenus] = useState([])
   const [apis, setApis] = useState([])
@@ -201,16 +200,16 @@ const RoleManagement = () => {
   }
 
   // 打开权限配置
-  const handleOpenPermissionDrawer = async (role) => {
+  const handleOpenPermissionModal = async (role) => {
     setCurrentRole(role)
-    setPermissionDrawerVisible(true)
+    setPermissionModalVisible(true)
     setPermissionLoading(true)
-    
+
     try {
       // 获取角色的权限信息
       const response = await api.roles.getAuthorized(role.id)
       const roleData = response.data
-      
+
       // 设置已选择的菜单和API
       setSelectedMenus(roleData.menus?.map(m => m.id.toString()) || [])
       setSelectedApis(roleData.apis?.map(a => ({ id: a.id, path: a.path, method: a.method })) || [])
@@ -238,7 +237,7 @@ const RoleManagement = () => {
       })
       
       showSuccess('权限配置保存成功')
-      setPermissionDrawerVisible(false)
+      setPermissionModalVisible(false)
     } catch (error) {
       handleBusinessError(error, '权限配置保存失败')
     } finally {
@@ -374,7 +373,7 @@ const RoleManagement = () => {
               size="small"
               icon={<SettingOutlined />}
               className="text-purple-500 border-purple-500 hover:bg-purple-50"
-              onClick={() => handleOpenPermissionDrawer(record)}
+              onClick={() => handleOpenPermissionModal(record)}
             />
           </Tooltip>
           <Tooltip title="删除">
@@ -574,32 +573,31 @@ const RoleManagement = () => {
         </Form>
       </Modal>
 
-      {/* 权限配置抽屉 */}
-      <Drawer
+      {/* 权限配置模态框 */}
+      <Modal
         title={
           <div className="flex items-center">
             <SettingOutlined className="mr-2 text-purple-500" />
             权限配置 - {currentRole?.name}
           </div>
         }
-        placement="right"
-        onClose={() => setPermissionDrawerVisible(false)}
-        open={permissionDrawerVisible}
-        width={600}
-        footer={
-          <div className="flex justify-end space-x-2">
-            <Button onClick={() => setPermissionDrawerVisible(false)}>
-              取消
-            </Button>
-            <Button
-              type="primary"
-              loading={permissionLoading}
-              onClick={handleSavePermission}
-            >
-              保存配置
-            </Button>
-          </div>
-        }
+        open={permissionModalVisible}
+        onCancel={() => setPermissionModalVisible(false)}
+        width={800}
+        footer={[
+          <Button key="cancel" onClick={() => setPermissionModalVisible(false)}>
+            取消
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            loading={permissionLoading}
+            onClick={handleSavePermission}
+          >
+            保存配置
+          </Button>
+        ]}
+        destroyOnHidden
       >
         <Tabs 
           defaultActiveKey="menus"
@@ -679,7 +677,7 @@ const RoleManagement = () => {
             }
           ]}
         />
-      </Drawer>
+      </Modal>
     </div>
   )
 }
