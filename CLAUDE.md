@@ -86,3 +86,9 @@ docker run -p 9999:80 mizhexiaoxiao/react-fastapi-admin
 - **Backend API**: http://localhost:9999/docs (Swagger UI)
 - **Frontend Dev**: http://localhost:5173 (Vite dev server)
 - **Production**: http://localhost:9999 (combined build)
+
+### Rules
+
+- All output must be in Chinese, including code comments and documentation.
+- Use concise and clear language.
+- Follow the project's coding standards and conventions.
