@@ -246,15 +246,57 @@ const RoleManagement = () => {
     }
   }
 
-  // 构建菜单树
-  const buildMenuTree = (menus, parentId = 0) => {
+  // 构建菜单树 - 支持后端已返回的树形结构
+  const buildMenuTree = (menus) => {
+    if (!menus || !Array.isArray(menus)) return [];
+    
+    // 如果后端已经返回了树形结构（包含children字段），直接转换格式
+    const convertTreeData = (nodes) => {
+      return nodes.map(node => {
+        const treeNode = {
+          title: node.name,
+          key: node.id.toString(),
+        };
+        
+        // 如果有子菜单且不为空数组，递归处理
+        if (node.children && Array.isArray(node.children) && node.children.length > 0) {
+          treeNode.children = convertTreeData(node.children);
+        }
+        
+        return treeNode;
+      });
+    };
+    
+    // 检查是否已经树形结构
+    const hasChildren = menus.some(menu => menu.children && Array.isArray(menu.children));
+    if (hasChildren) {
+      return convertTreeData(menus);
+    }
+    
+    // 如果没有children字段，使用原有的扁平结构构建树
     return menus
-      .filter(menu => menu.parent_id === parentId)
-      .map(menu => ({
-        title: menu.name,
-        key: menu.id.toString(), // 确保 key 为字符串
-        children: buildMenuTree(menus, menu.id)
-      }))
+      .filter(menu => menu.parent_id === 0)
+      .sort((a, b) => a.order - b.order)
+      .map(menu => {
+        const children = menus
+          .filter(child => child.parent_id === menu.id)
+          .sort((a, b) => a.order - b.order)
+          .map(child => ({
+            title: child.name,
+            key: child.id.toString()
+          }));
+        
+        const treeNode = {
+          title: menu.name,
+          key: menu.id.toString(),
+        };
+        
+        if (children.length > 0) {
+          treeNode.children = children;
+        }
+        
+        return treeNode;
+      });
   }
 
   // 表格列定义
