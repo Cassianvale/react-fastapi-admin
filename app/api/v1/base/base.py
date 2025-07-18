@@ -198,6 +198,19 @@ async def get_user_menu():
                     menus.extend(menu_list)
             # 去重
             menus = list(set(menus))
+            
+            # 获取所有子菜单的父菜单ID
+            parent_ids = set()
+            for menu in menus:
+                if menu.parent_id != 0:
+                    parent_ids.add(menu.parent_id)
+            
+            # 查询这些父菜单并添加到菜单列表中
+            if parent_ids:
+                parent_menus_to_add = await Menu.filter(id__in=parent_ids, is_hidden=False)
+                menus.extend(parent_menus_to_add)
+                # 再次去重
+                menus = list(set(menus))
 
     # 获取父级菜单（只包含非隐藏菜单）
     parent_menus: list[Menu] = []
