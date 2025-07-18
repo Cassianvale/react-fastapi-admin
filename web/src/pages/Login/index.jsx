@@ -89,8 +89,7 @@ const Login = () => {
             <Form.Item
               name="password"
               rules={[
-                { required: true, message: '请输入密码!' },
-                { min: 6, message: '密码至少6个字符!' }
+                { required: true, message: '请输入密码!' }
               ]}
             >
               <Input.Password

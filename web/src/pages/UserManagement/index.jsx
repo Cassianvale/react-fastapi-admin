@@ -29,10 +29,12 @@ import {
 } from '@ant-design/icons'
 import api from '@/api'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
+import PasswordStrengthIndicator from '@/components/PasswordStrengthIndicator'
 
 const UserManagement = () => {
   // 基础状态
   const [loading, setLoading] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState(null)
   const [users, setUsers] = useState([])
   const [total, setTotal] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
@@ -173,12 +175,18 @@ const UserManagement = () => {
   const handleSaveUser = async (values) => {
     setModalLoading(true)
     try {
-      // 处理空字符串，转换为null，避免后端验证错误
-      const processedValues = {
-        ...values,
-        email: values.email?.trim() || null,
-        phone: values.phone?.trim() || null,
-        nickname: values.nickname?.trim() || null
+      // 处理空值，当字段为空时删除该字段，避免后端验证错误
+      const processedValues = { ...values }
+      
+      // 清理字段值
+      if (values.email !== undefined) {
+        processedValues.email = values.email?.trim() || undefined
+      }
+      if (values.phone !== undefined) {
+        processedValues.phone = values.phone?.trim() || undefined
+      }
+      if (values.nickname !== undefined) {
+        processedValues.nickname = values.nickname?.trim() || undefined
       }
       
       if (editingUser) {
@@ -568,7 +576,7 @@ const UserManagement = () => {
                 label="邮箱"
                 name="email"
                 rules={[
-                  { required: false, message: '请输入邮箱地址' },
+                  { required: true, message: '请输入邮箱地址' },
                   { type: 'email', message: '请输入正确的邮箱格式' }
                 ]}
               >
@@ -604,7 +612,38 @@ const UserManagement = () => {
                   name="password"
                   rules={[
                     { required: true, message: '请输入密码' },
-                    { min: 6, message: '密码至少6个字符' }
+                    () => ({
+                      validator(_, value) {
+                        if (!value) return Promise.resolve()
+                        
+                        // 检查密码长度
+                        if (value.length < 8) {
+                          return Promise.reject(new Error('密码长度不能少于8个字符'))
+                        }
+                        
+                        // 检查大写字母
+                        if (!/[A-Z]/.test(value)) {
+                          return Promise.reject(new Error('密码必须包含至少一个大写字母'))
+                        }
+                        
+                        // 检查小写字母
+                        if (!/[a-z]/.test(value)) {
+                          return Promise.reject(new Error('密码必须包含至少一个小写字母'))
+                        }
+                        
+                        // 检查数字
+                        if (!/\d/.test(value)) {
+                          return Promise.reject(new Error('密码必须包含至少一个数字'))
+                        }
+                        
+                        // 检查特殊字符
+                        if (!/[!@#$%^&*(),.?":{}|<>]/.test(value)) {
+                          return Promise.reject(new Error('密码必须包含至少一个特殊字符'))
+                        }
+                        
+                        return Promise.resolve()
+                      }
+                    })
                   ]}
                 >
                   <Input.Password 
@@ -612,6 +651,15 @@ const UserManagement = () => {
                     placeholder="请输入密码"
                     autoComplete="new-password"
                   />
+                </Form.Item>
+                <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.password !== currentValues.password}>
+                  {({ getFieldValue }) => (
+                    <PasswordStrengthIndicator 
+                      password={getFieldValue('password')}
+                      onStrengthChange={setPasswordStrength}
+                      showSuggestions={true}
+                    />
+                  )}
                 </Form.Item>
               </Col>
               <Col span={12}>

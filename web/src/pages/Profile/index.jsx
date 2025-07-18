@@ -4,11 +4,13 @@ import { UserOutlined, LockOutlined, EditOutlined, SaveOutlined, MailOutlined, S
 import { useNavigate } from 'react-router-dom'
 import api from '@/api'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
+import PasswordStrengthIndicator from '@/components/PasswordStrengthIndicator'
 
 const Profile = () => {
   const [userInfo, setUserInfo] = useState({})
   const [loading, setLoading] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState(null)
   const [profileForm] = Form.useForm()
   const [passwordForm] = Form.useForm()
   const navigate = useNavigate()
@@ -39,12 +41,18 @@ const Profile = () => {
   const handleUpdateProfile = async (values) => {
     setLoading(true)
     try {
-      // 处理空字符串，转换为null，避免后端验证错误
-      const processedValues = {
-        ...values,
-        email: values.email?.trim() || null,
-        phone: values.phone?.trim() || null,
-        nickname: values.nickname?.trim() || null
+      // 处理空值，当字段为空时删除该字段，避免后端验证错误
+      const processedValues = { ...values }
+      
+      // 清理字段值
+      if (values.email !== undefined) {
+        processedValues.email = values.email?.trim() || undefined
+      }
+      if (values.phone !== undefined) {
+        processedValues.phone = values.phone?.trim() || undefined
+      }
+      if (values.nickname !== undefined) {
+        processedValues.nickname = values.nickname?.trim() || undefined
       }
       
       await api.auth.updateProfile(processedValues)
@@ -396,7 +404,38 @@ const Profile = () => {
                           name="newPassword"
                           rules={[
                             { required: true, message: '请输入新密码!' },
-                            { min: 6, message: '密码至少6个字符!' }
+                            () => ({
+                              validator(_, value) {
+                                if (!value) return Promise.resolve()
+                                
+                                // 检查密码长度
+                                if (value.length < 8) {
+                                  return Promise.reject(new Error('密码长度不能少于8个字符'))
+                                }
+                                
+                                // 检查大写字母
+                                if (!/[A-Z]/.test(value)) {
+                                  return Promise.reject(new Error('密码必须包含至少一个大写字母'))
+                                }
+                                
+                                // 检查小写字母
+                                if (!/[a-z]/.test(value)) {
+                                  return Promise.reject(new Error('密码必须包含至少一个小写字母'))
+                                }
+                                
+                                // 检查数字
+                                if (!/\d/.test(value)) {
+                                  return Promise.reject(new Error('密码必须包含至少一个数字'))
+                                }
+                                
+                                // 检查特殊字符
+                                if (!/[!@#$%^&*(),.?":{}|<>]/.test(value)) {
+                                  return Promise.reject(new Error('密码必须包含至少一个特殊字符'))
+                                }
+                                
+                                return Promise.resolve()
+                              }
+                            })
                           ]}
                         >
                           <Input.Password
@@ -405,6 +444,16 @@ const Profile = () => {
                             size="large"
                             autoComplete="new-password"
                           />
+                        </Form.Item>
+
+                        <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.newPassword !== currentValues.newPassword}>
+                          {({ getFieldValue }) => (
+                            <PasswordStrengthIndicator 
+                              password={getFieldValue('newPassword')}
+                              onStrengthChange={setPasswordStrength}
+                              showSuggestions={true}
+                            />
+                          )}
                         </Form.Item>
 
                         <Form.Item
@@ -453,8 +502,9 @@ const Profile = () => {
                           密码安全提示
                         </h4>
                         <ul className="text-xs text-orange-700 space-y-1">
-                          <li>• 密码长度至少6个字符</li>
-                          <li>• 建议包含字母、数字和特殊字符</li>
+                          <li>• 密码长度至少8个字符</li>
+                          <li>• 必须包含大写字母、小写字母、数字和特殊字符</li>
+                          <li>• 建议使用强度指示器确保密码安全</li>
                           <li>• 定期更换密码以确保账户安全</li>
                           <li>• 不要使用容易猜测的密码</li>
                         </ul>
