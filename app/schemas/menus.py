@@ -1,13 +1,8 @@
-from enum import StrEnum
 from typing import Optional, Union, List
 
 from pydantic import BaseModel, Field
 
-
-class MenuType(StrEnum):
-    CATALOG = "catalog"  # 目录
-    MENU = "menu"  # 菜单
-    BUTTON = "button"  # 按钮
+from app.models.enums import MenuType
 
 
 class BaseMenu(BaseModel):

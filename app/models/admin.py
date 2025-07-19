@@ -1,9 +1,7 @@
 from tortoise import fields
 
-from app.schemas.menus import MenuType
-
 from .base import BaseModel, TimestampMixin
-from .enums import MethodType
+from .enums import MethodType, MenuType, PermissionType, ResourceType
 
 
 class User(BaseModel, TimestampMixin):
@@ -25,11 +23,105 @@ class User(BaseModel, TimestampMixin):
 class Role(BaseModel, TimestampMixin):
     name = fields.CharField(max_length=20, unique=True, description="角色名称", index=True)
     desc = fields.CharField(max_length=500, null=True, description="角色描述")
-    menus = fields.ManyToManyField("models.Menu", related_name="role_menus")
-    apis = fields.ManyToManyField("models.Api", related_name="role_apis")
+
+    permissions = fields.ManyToManyField("models.Permission", related_name="role_permissions")
 
     class Meta:
         table = "role"
+
+
+class Permission(BaseModel, TimestampMixin):
+    """统一权限模型"""
+
+    name = fields.CharField(max_length=50, description="权限名称", index=True)
+    code = fields.CharField(max_length=100, unique=True, description="权限代码", index=True)
+    description = fields.CharField(max_length=200, null=True, description="权限描述")
+    permission_type = fields.CharEnumField(PermissionType, description="权限类型", index=True)
+    parent_id = fields.IntField(default=0, description="父权限ID", index=True)
+    order = fields.IntField(default=0, description="排序", index=True)
+    is_active = fields.BooleanField(default=True, description="是否启用", index=True)
+
+    # 菜单相关字段
+    menu_path = fields.CharField(max_length=100, null=True, description="菜单路径")
+    menu_icon = fields.CharField(max_length=100, null=True, description="菜单图标")
+    menu_component = fields.CharField(max_length=100, null=True, description="菜单组件")
+    is_hidden = fields.BooleanField(default=False, description="是否隐藏菜单")
+
+    # API相关字段
+    api_path = fields.CharField(max_length=100, null=True, description="API路径")
+    api_method = fields.CharEnumField(MethodType, null=True, description="API方法")
+
+    class Meta:
+        table = "permission"
+
+    @classmethod
+    def generate_permission_code(
+        cls,
+        permission_type: PermissionType,
+        api_path: str = None,
+        api_method: str = None,
+        menu_path: str = None,
+        name: str = None,
+    ) -> str:
+        """
+        自动生成权限代码
+
+        规则：
+        - API权限：api.{module}.{action}.{method}
+        - 菜单权限：menu.{path}
+        - 模块权限：module.{name}
+        """
+        if permission_type == PermissionType.ACTION and api_path and api_method:
+            # API权限：api.user.list.get
+            path_parts = api_path.strip("/").split("/")
+            # 移除 'api', 'v1' 等前缀
+            clean_parts = [part for part in path_parts if part not in ["api", "v1"]]
+            if len(clean_parts) >= 2:
+                module = clean_parts[0]  # user, role, menu 等
+                action = clean_parts[1]  # list, create, update 等
+                return f"api.{module}.{action}.{api_method.lower()}"
+            else:
+                # 处理特殊情况
+                return f"api.{'.'.join(clean_parts)}.{api_method.lower()}"
+
+        elif permission_type in [PermissionType.FEATURE, PermissionType.ACTION] and menu_path:
+            # 菜单权限：menu.users, menu.roles
+            clean_path = menu_path.strip("/")
+            return f"menu.{clean_path}"
+
+        elif permission_type == PermissionType.MODULE:
+            # 模块权限：module.system
+            if name:
+                clean_name = name.replace(" ", "").replace("管理", "").lower()
+                name_map = {
+                    "系统": "system",
+                    "用户": "user",
+                    "角色": "role",
+                    "菜单": "menu",
+                    "权限": "permission",
+                    "api": "api",
+                    "部门": "dept",
+                    "审计日志": "audit",
+                }
+                clean_name = name_map.get(clean_name, clean_name)
+                return f"module.{clean_name}"
+
+        # 默认情况：使用时间戳确保唯一性
+        import time
+
+        return f"perm.{int(time.time())}"
+
+    async def save(self, *args, **kwargs):
+        """保存前自动生成 code"""
+        if not self.code:
+            self.code = self.generate_permission_code(
+                permission_type=self.permission_type,
+                api_path=self.api_path,
+                api_method=self.api_method.value if self.api_method else None,
+                menu_path=self.menu_path,
+                name=self.name,
+            )
+        await super().save(*args, **kwargs)
 
 
 class Api(BaseModel, TimestampMixin):

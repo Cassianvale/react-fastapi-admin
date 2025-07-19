@@ -27,8 +27,8 @@ export default {
         create: (data = {}) => request.post('/role/create', data),
         update: (data = {}) => request.post('/role/update', data),
         delete: (data) => request.delete('/role/delete', { params: data }),
-        updateAuthorized: (data = {}) => request.post('/role/authorized', data),
-        getAuthorized: (roleId) => request.get('/role/authorized', { params: { id: roleId } }),
+        getPermissions: (roleId) => request.get('/role/permissions', { params: { role_id: roleId } }),
+        updatePermissions: (data = {}) => request.post('/role/permissions', data),
     },
 
     // 菜单管理

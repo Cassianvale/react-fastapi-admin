@@ -183,34 +183,16 @@ async def get_user_menu():
     if not user_obj:
         raise AuthenticationError("用户不存在")
 
-    menus: list[Menu] = []
+    # 使用新的权限模型构建菜单
+    from app.controllers.permission import permission_controller
 
-    # 超级用户获取所有非隐藏菜单
     if user_obj.is_superuser:
+        # 超级用户获取所有非隐藏菜单
         menus = await Menu.filter(is_hidden=False).all()
     else:
-        # 普通用户根据角色获取非隐藏菜单
-        role_objs: list[Role] = await user_obj.roles
-        if role_objs:
-            for role_obj in role_objs:
-                menu_list = await role_obj.menus.filter(is_hidden=False)
-                if menu_list:
-                    menus.extend(menu_list)
-            # 去重
-            menus = list(set(menus))
-            
-            # 获取所有子菜单的父菜单ID
-            parent_ids = set()
-            for menu in menus:
-                if menu.parent_id != 0:
-                    parent_ids.add(menu.parent_id)
-            
-            # 查询这些父菜单并添加到菜单列表中
-            if parent_ids:
-                parent_menus_to_add = await Menu.filter(id__in=parent_ids, is_hidden=False)
-                menus.extend(parent_menus_to_add)
-                # 再次去重
-                menus = list(set(menus))
+        # 普通用户根据权限获取菜单
+        menu_permissions = await permission_controller.get_user_menu_permissions(user_id)
+        menus = await _build_menus_from_permissions(menu_permissions)
 
     # 获取父级菜单（只包含非隐藏菜单）
     parent_menus: list[Menu] = []
@@ -253,22 +235,17 @@ async def get_user_api():
     if not user_obj:
         raise AuthenticationError("用户不存在")
 
-    apis = []
+    # 使用新的权限模型获取API权限
+    from app.controllers.permission import permission_controller
 
-    # 超级用户获取所有API
     if user_obj.is_superuser:
+        # 超级用户获取所有API
         api_objs: list[Api] = await Api.all()
         apis = [api.method.lower() + api.path for api in api_objs]
     else:
-        # 普通用户根据角色获取API
-        role_objs: list[Role] = await user_obj.roles
-        if role_objs:
-            for role_obj in role_objs:
-                api_list: list[Api] = await role_obj.apis
-                if api_list:
-                    apis.extend([api.method.lower() + api.path for api in api_list])
-            # 去重
-            apis = list(set(apis))
+        # 普通用户根据权限获取API
+        api_permissions = await permission_controller.get_user_api_permissions(user_id)
+        apis = [perm.api_method.lower() + perm.api_path for perm in api_permissions]
 
     return Success(data=apis)
 
@@ -375,3 +352,29 @@ async def logout(token: str = Header(..., description="token验证")):
 
     except Exception as e:
         raise AuthenticationError(f"注销失败: {str(e)}")
+
+
+# 辅助函数
+async def _build_menus_from_permissions(menu_permissions) -> list[Menu]:
+    """从权限模型构建菜单列表"""
+    # 根据权限构建菜单
+    menu_paths = [perm.menu_path for perm in menu_permissions if perm.menu_path and not perm.is_hidden]
+    if not menu_paths:
+        return []
+
+    # 查询对应的菜单
+    menus = await Menu.filter(path__in=menu_paths, is_hidden=False).all()
+
+    # 获取父菜单
+    parent_ids = set()
+    for menu in menus:
+        if menu.parent_id != 0:
+            parent_ids.add(menu.parent_id)
+
+    if parent_ids:
+        parent_menus = await Menu.filter(id__in=parent_ids, is_hidden=False)
+        menus.extend(parent_menus)
+        # 去重
+        menus = list(set(menus))
+
+    return menus

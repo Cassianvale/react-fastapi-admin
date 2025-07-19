@@ -42,12 +42,44 @@ class ApiController(CRUDBase[Api, ApiCreate, ApiUpdate]):
                 else:
                     logger.debug(f"API Created {method} {path}")
                     # 修复：正确创建API对象，确保method字段类型正确
-                    await Api.create(
-                        method=MethodType(method),  # 确保正确的枚举类型
-                        path=path,
-                        summary=summary,
-                        tags=tags
+                    api_obj = await Api.create(
+                        method=MethodType(method), path=path, summary=summary, tags=tags  # 确保正确的枚举类型
                     )
+                    # 自动创建对应的权限
+                    await self._create_api_permission(api_obj)
+
+    async def _create_api_permission(self, api_obj):
+        """为API自动创建权限"""
+        from app.models.admin import Permission
+        from app.models.enums import PermissionType, MethodType
+
+        # 生成权限代码
+        permission_code = Permission.generate_permission_code(
+            permission_type=PermissionType.ACTION,
+            api_path=api_obj.path,
+            api_method=api_obj.method.value,
+        )
+
+        # 检查权限是否已存在
+        existing_permission = await Permission.filter(code=permission_code).first()
+        if existing_permission:
+            return existing_permission
+
+        # 创建权限
+        permission = await Permission.create(
+            name=api_obj.summary or f"{api_obj.method.value} {api_obj.path}",
+            code=permission_code,
+            description=f"API权限: {api_obj.summary or api_obj.path}",
+            permission_type=PermissionType.ACTION,
+            parent_id=0,  # 可以后续根据模块分组
+            order=0,
+            is_active=True,
+            api_path=api_obj.path,
+            api_method=api_obj.method,
+        )
+
+        logger.debug(f"Permission Created: {permission.code} for API {api_obj.method.value} {api_obj.path}")
+        return permission
 
 
 api_controller = ApiController()

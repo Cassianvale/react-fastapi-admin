@@ -55,10 +55,8 @@ const RoleManagement = () => {
   // 权限配置状态
   const [permissionModalVisible, setPermissionModalVisible] = useState(false)
   const [currentRole, setCurrentRole] = useState(null)
-  const [menus, setMenus] = useState([])
-  const [apis, setApis] = useState([])
-  const [selectedMenus, setSelectedMenus] = useState([])
-  const [selectedApis, setSelectedApis] = useState([])
+  const [permissions, setPermissions] = useState([])
+  const [selectedPermissions, setSelectedPermissions] = useState([])
   const [permissionLoading, setPermissionLoading] = useState(false)
   
   const { handleError, handleBusinessError, showSuccess } = useErrorHandler()
@@ -84,31 +82,20 @@ const RoleManagement = () => {
     }
   }
 
-  // 获取菜单列表
-  const fetchMenus = async () => {
+  // 获取权限数据 - 从现有权限中构建树结构
+  const fetchPermissions = async () => {
     try {
-      const response = await api.menus.getList({ page: 1, page_size: 1000 })
-      setMenus(response.data || [])
+      // 从角色权限中获取所有权限或者直接使用静态的权限树结构
+      setPermissions([]) // 暂时设为空，权限树将在角色权限分配时动态获取
     } catch (error) {
-      console.error('获取菜单列表失败:', error)
-    }
-  }
-
-  // 获取API列表
-  const fetchApis = async () => {
-    try {
-      const response = await api.apis.getList({ page: 1, page_size: 1000 })
-      setApis(response.data || [])
-    } catch (error) {
-      console.error('获取API列表失败:', error)
+      handleError(error, '获取权限数据失败')
     }
   }
 
   // 初始化数据
   useEffect(() => {
     fetchRoles()
-    fetchMenus()
-    fetchApis()
+    fetchPermissions()
   }, [])
 
   // 处理模态框表单数据设置
@@ -206,13 +193,27 @@ const RoleManagement = () => {
     setPermissionLoading(true)
 
     try {
-      // 获取角色的权限信息
-      const response = await api.roles.getAuthorized(role.id)
-      const roleData = response.data
+      // 获取角色的权限信息（树形结构）
+      const response = await api.roles.getPermissions(role.id)
+      const rolePermissionsTree = response.data || []
 
-      // 设置已选择的菜单和API
-      setSelectedMenus(roleData.menus?.map(m => m.id.toString()) || [])
-      setSelectedApis(roleData.apis?.map(a => ({ id: a.id, path: a.path, method: a.method })) || [])
+      // 从树形结构中提取所有权限ID
+      const extractPermissionIds = (tree) => {
+        let ids = []
+        tree.forEach(item => {
+          ids.push(item.id)
+          if (item.children && item.children.length > 0) {
+            ids = ids.concat(extractPermissionIds(item.children))
+          }
+        })
+        return ids
+      }
+
+      const permissionIds = extractPermissionIds(rolePermissionsTree)
+      setSelectedPermissions(permissionIds)
+
+      // 同时设置权限树数据供显示使用
+      setPermissions(rolePermissionsTree)
     } catch (error) {
       handleError(error, '获取角色权限失败')
     } finally {
@@ -224,18 +225,11 @@ const RoleManagement = () => {
   const handleSavePermission = async () => {
     setPermissionLoading(true)
     try {
-      const apiInfos = selectedApis.map(api => ({
-        id: api.id,
-        path: api.path,
-        method: api.method
-      }))
-      
-      await api.roles.updateAuthorized({
+      await api.roles.updatePermissions({
         id: currentRole.id,
-        menu_ids: selectedMenus.map(id => parseInt(id)), // 转换回数字
-        api_infos: apiInfos
+        permission_ids: selectedPermissions
       })
-      
+
       showSuccess('权限配置保存成功')
       setPermissionModalVisible(false)
     } catch (error) {
@@ -245,58 +239,7 @@ const RoleManagement = () => {
     }
   }
 
-  // 构建菜单树 - 支持后端已返回的树形结构
-  const buildMenuTree = (menus) => {
-    if (!menus || !Array.isArray(menus)) return [];
-    
-    // 如果后端已经返回了树形结构（包含children字段），直接转换格式
-    const convertTreeData = (nodes) => {
-      return nodes.map(node => {
-        const treeNode = {
-          title: node.name,
-          key: node.id.toString(),
-        };
-        
-        // 如果有子菜单且不为空数组，递归处理
-        if (node.children && Array.isArray(node.children) && node.children.length > 0) {
-          treeNode.children = convertTreeData(node.children);
-        }
-        
-        return treeNode;
-      });
-    };
-    
-    // 检查是否已经树形结构
-    const hasChildren = menus.some(menu => menu.children && Array.isArray(menu.children));
-    if (hasChildren) {
-      return convertTreeData(menus);
-    }
-    
-    // 如果没有children字段，使用原有的扁平结构构建树
-    return menus
-      .filter(menu => menu.parent_id === 0)
-      .sort((a, b) => a.order - b.order)
-      .map(menu => {
-        const children = menus
-          .filter(child => child.parent_id === menu.id)
-          .sort((a, b) => a.order - b.order)
-          .map(child => ({
-            title: child.name,
-            key: child.id.toString()
-          }));
-        
-        const treeNode = {
-          title: menu.name,
-          key: menu.id.toString(),
-        };
-        
-        if (children.length > 0) {
-          treeNode.children = children;
-        }
-        
-        return treeNode;
-      });
-  }
+
 
   // 表格列定义
   const columns = [
@@ -599,87 +542,62 @@ const RoleManagement = () => {
         ]}
         destroyOnHidden
       >
-        <Tabs 
-          defaultActiveKey="menus"
-          items={[
-            {
-              key: 'menus',
-              label: (
-                <span>
-                  <MenuOutlined />
-                  菜单权限
-                </span>
-              ),
-              children: (
-                <Tree
-                  checkable
-                  checkedKeys={selectedMenus}
-                  onCheck={setSelectedMenus}
-                  treeData={buildMenuTree(menus)}
-                  height={400}
-                />
-              )
-            },
-            {
-              key: 'apis',
-              label: (
-                <span>
-                  <ApiOutlined />
-                  API权限
-                </span>
-              ),
-              children: (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {apis.map(api => (
-                    <div
-                      key={api.id}
-                      className={`p-3 border rounded cursor-pointer transition-colors ${
-                        selectedApis.find(a => a.id === api.id)
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => {
-                        const isSelected = selectedApis.find(a => a.id === api.id)
-                        if (isSelected) {
-                          setSelectedApis(selectedApis.filter(a => a.id !== api.id))
-                        } else {
-                          setSelectedApis([...selectedApis, {
-                            id: api.id,
-                            path: api.path,
-                            method: api.method
-                          }])
-                        }
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-medium">{api.summary}</span>
-                          <div className="text-sm text-gray-500">
-                            <Tag color={
-                              api.method === 'GET' ? 'green' :
-                              api.method === 'POST' ? 'blue' :
-                              api.method === 'PUT' ? 'orange' :
-                              api.method === 'DELETE' ? 'red' : 'default'
-                            }>
-                              {api.method}
-                            </Tag>
-                            {api.path}
-                          </div>
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {api.tags}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            }
-          ]}
-        />
+        <div className="space-y-4">
+          <div className="text-sm text-gray-600 mb-4">
+            为角色 <strong>{currentRole?.name}</strong> 分配权限。权限采用层次化结构，选择父权限会自动包含子权限。
+          </div>
+
+          <Tree
+            checkable
+            checkedKeys={selectedPermissions}
+            onCheck={(checkedKeys) => {
+              setSelectedPermissions(Array.isArray(checkedKeys) ? checkedKeys : checkedKeys.checked)
+            }}
+            treeData={buildPermissionTree(permissions)}
+            height={400}
+            showIcon
+            defaultExpandAll
+          />
+        </div>
       </Modal>
     </div>
   )
 }
 
-export default RoleManagement 
+// 辅助函数：构建权限树
+const buildPermissionTree = (permissions) => {
+  if (!permissions || !Array.isArray(permissions)) {
+    return []
+  }
+
+  const buildTree = (items) => {
+    return items.map(item => ({
+      title: (
+        <div className="flex items-center space-x-2">
+          <span className={`inline-block w-2 h-2 rounded-full ${
+            item.permission_type === 'module' ? 'bg-blue-500' :
+            item.permission_type === 'feature' ? 'bg-green-500' :
+            'bg-orange-500'
+          }`} />
+          <span className="font-medium">{item.name}</span>
+          {item.api_path && (
+            <span className="text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded">
+              {item.api_method} {item.api_path}
+            </span>
+          )}
+          {item.menu_path && (
+            <span className="text-xs text-green-400 bg-green-50 px-2 py-1 rounded">
+              菜单: {item.menu_path}
+            </span>
+          )}
+        </div>
+      ),
+      key: item.id,
+      children: item.children && item.children.length > 0 ? buildTree(item.children) : undefined
+    }))
+  }
+
+  return buildTree(permissions)
+}
+
+export default RoleManagement

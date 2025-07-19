@@ -253,18 +253,22 @@ class PermissionControl:
         method = request.method
         path = request.url.path
 
-        # 获取用户角色
-        roles: list[Role] = await current_user.roles
-        if not roles:
-            raise AuthorizationError("用户未绑定角色")
+        # 使用新的权限模型检查权限
+        from app.controllers.permission import permission_controller
 
-        # 获取所有角色的API权限
-        apis = [await role.apis for role in roles]
-        permission_apis = list(set((api.method, api.path) for api in sum(apis, [])))
-
-        # 检查是否有权限
-        if (method, path) not in permission_apis:
+        has_permission = await permission_controller.check_user_api_permission(current_user.id, path, method)
+        if not has_permission:
             raise AuthorizationError(f"权限不足 - 方法:{method} 路径:{path}")
+
+    @classmethod
+    async def check_permission_by_code(cls, current_user: User, permission_code: str) -> bool:
+        """根据权限代码检查权限"""
+        if current_user.is_superuser:
+            return True
+
+        from app.controllers.permission import permission_controller
+
+        return await permission_controller.check_user_permission(current_user.id, permission_code)
 
 
 async def get_page_params(
