@@ -36,7 +36,7 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
             is_valid, message = await self.validate_password(obj_in.password)
             if not is_valid:
                 raise HTTPException(status_code=400, detail=f"密码强度不足: {message}")
-            
+
         obj_in.password = get_password_hash(password=obj_in.password)
         obj = await self.create(obj_in)
         return obj
@@ -52,17 +52,17 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
         if not user:
             # 为了防止用户枚举攻击，不明确指出用户不存在
             raise HTTPException(status_code=400, detail="用户名或密码错误")
-            
+
         # 验证密码
         verified = verify_password(credentials.password, user.password)
         if not verified:
             # 为了防止用户枚举攻击，不明确指出密码错误
             raise HTTPException(status_code=400, detail="用户名或密码错误")
-            
+
         # 检查用户状态
         if not user.is_active:
             raise HTTPException(status_code=400, detail="用户已被禁用")
-            
+
         return user
 
     async def update_roles(self, user: User, role_ids: List[int]) -> None:
@@ -71,17 +71,22 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
             role_obj = await role_controller.get(id=role_id)
             await user.roles.add(role_obj)
 
+        # 清除用户的权限缓存
+        from app.controllers.permission import permission_controller
+
+        permission_controller.clear_user_cache(user.id)
+
     async def reset_password(self, user_id: int, new_password: str = "123456"):
         user_obj = await self.get(id=user_id)
         if user_obj.is_superuser:
             raise HTTPException(status_code=403, detail="不允许重置超级管理员密码")
-            
+
         # 验证新密码强度（除非是默认密码）
         if new_password != "123456":
             is_valid, message = await self.validate_password(new_password)
             if not is_valid:
                 raise HTTPException(status_code=400, detail=f"密码强度不足: {message}")
-                
+
         user_obj.password = get_password_hash(password=new_password)
         await user_obj.save()
 

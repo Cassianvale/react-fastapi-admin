@@ -13,6 +13,15 @@ from app.settings.config import settings
 class UploadController:
     """文件上传控制器"""
 
+    def ensure_storage_directory(self, path: str) -> None:
+        """
+        确保存储目录存在（仅在需要时创建）
+
+        Args:
+            path: 需要创建的目录路径
+        """
+        os.makedirs(path, exist_ok=True)
+
     def get_file_extension(self, filename: str) -> str:
         """获取文件扩展名"""
         return os.path.splitext(filename)[1] if "." in filename else ""
@@ -61,8 +70,8 @@ class UploadController:
         # URL路径
         url_path = os.path.join(settings.LOCAL_STORAGE_URL_PREFIX, file_type, date_str).replace("\\", "/")
 
-        # 确保目录存在
-        os.makedirs(fs_path, exist_ok=True)
+        # 仅在实际需要时确保目录存在
+        self.ensure_storage_directory(fs_path)
 
         return fs_path, url_path
 

@@ -11,11 +11,18 @@ def get_root_path() -> Path:
     return Path(__file__).parent.parent.parent.resolve()
 
 
-def ensure_path(path: str) -> Path:
-    """pathlib.Path 自动跨平台处理"""
+def ensure_path(path: str, create_parent: bool = True) -> Path:
+    """
+    pathlib.Path 自动跨平台处理
+
+    Args:
+        path: 相对路径
+        create_parent: 是否创建父目录，默认为True
+    """
     root = get_root_path()
     full_path = root / path
-    full_path.parent.mkdir(parents=True, exist_ok=True)
+    if create_parent:
+        full_path.parent.mkdir(parents=True, exist_ok=True)
     return full_path
 
 
@@ -110,8 +117,8 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def local_storage_path(self) -> Path:
-        """获取本地存储路径"""
-        return ensure_path("storage/uploads")
+        """获取本地存储路径（不自动创建目录）"""
+        return ensure_path("storage/uploads", create_parent=False)
 
     @computed_field
     @property
@@ -182,9 +189,9 @@ class Settings(BaseSettings):
 
     def model_post_init(self, __context) -> None:
         """模型初始化后的处理"""
-        # 确保必要的目录存在
+        # 确保日志目录存在（这是必需的）
         self.logs_path.mkdir(parents=True, exist_ok=True)
-        self.local_storage_path.mkdir(parents=True, exist_ok=True)
+        # 注意：存储目录只在实际需要时创建，不在启动时自动创建
 
     def get_database_url(self) -> str:
         """获取数据库连接 URL"""

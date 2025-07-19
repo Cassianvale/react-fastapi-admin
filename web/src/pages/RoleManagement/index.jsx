@@ -274,13 +274,35 @@ const RoleManagement = () => {
     {
       title: '权限数量',
       key: 'permission_count',
-      width: 150,
-      render: (_, record) => (
-        <Tag color="green">
-          <MenuOutlined className="gap-1" />
-          {record.permission_count || 0} 个权限
-        </Tag>
-      )
+      width: 200,
+      render: (_, record) => {
+        const stats = record.permission_stats || {}
+        const parentCount = stats.parent_menu_count || 0
+        const subCount = stats.sub_menu_count || 0
+        const apiCount = stats.api_count || 0
+        const totalCount = stats.total_count || record.permission_count || 0
+
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center space-x-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+              <span className="text-xs text-gray-600">父菜单: {parentCount}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+              <span className="text-xs text-gray-600">子菜单: {subCount}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-orange-500"></span>
+              <span className="text-xs text-gray-600">接口: {apiCount}</span>
+            </div>
+            <Tag color="purple" size="small">
+              <MenuOutlined className="mr-1" />
+              总计: {totalCount}
+            </Tag>
+          </div>
+        )
+      }
     },
     {
       title: '创建时间',

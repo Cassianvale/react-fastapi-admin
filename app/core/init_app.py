@@ -78,7 +78,7 @@ def register_routers(app: FastAPI, prefix: str = "/api"):
 async def init_superuser():
     user = await user_controller.model.exists()
     if not user:
-        await user_controller.create_user(
+        admin_user = await user_controller.create_user(
             UserCreate(
                 username="admin",
                 email="admin@admin.com",
@@ -89,6 +89,8 @@ async def init_superuser():
                 is_superuser=True,
             )
         )
+        return admin_user
+    return None
 
 
 # 初始化生成菜单
@@ -222,8 +224,51 @@ async def init_roles():
             name="普通用户",
             desc="普通用户角色",
         )
+        return admin_role, user_role
+    return None, None
 
-        # 权限分配将在权限迁移完成后进行
+
+async def init_permissions_and_assign_roles():
+    """初始化权限并分配角色"""
+    from app.models.admin import Permission, User
+
+    # 获取管理员角色
+    admin_role = await Role.filter(name="管理员").first()
+    if not admin_role:
+        logger.warning("未找到管理员角色，跳过权限分配")
+        return
+
+    # 获取所有权限
+    all_permissions = await Permission.filter(is_active=True).all()
+    logger.info(f"系统中共有 {len(all_permissions)} 个活跃权限")
+
+    # 检查管理员角色当前的权限数量
+    current_permissions = await admin_role.permissions.all()
+    logger.info(f"管理员角色当前有 {len(current_permissions)} 个权限")
+
+    # 为管理员角色分配所有权限（无论是否已有权限都重新分配）
+    if all_permissions:
+        await admin_role.permissions.clear()
+        for permission in all_permissions:
+            await admin_role.permissions.add(permission)
+        logger.info(f"为管理员角色重新分配了 {len(all_permissions)} 个权限")
+    else:
+        logger.warning("系统中没有找到任何活跃权限")
+
+    # 获取超级管理员用户
+    admin_user = await User.filter(username="admin", is_superuser=True).first()
+    if admin_user:
+        # 检查是否已经分配了管理员角色
+        user_roles = await admin_user.roles.all()
+        admin_role_assigned = any(role.name == "管理员" for role in user_roles)
+
+        if not admin_role_assigned:
+            await admin_user.roles.add(admin_role)
+            logger.info("为超级管理员用户分配了管理员角色")
+        else:
+            logger.info("超级管理员用户已经拥有管理员角色")
+    else:
+        logger.warning("未找到超级管理员用户")
 
 
 async def init_data():
@@ -233,3 +278,6 @@ async def init_data():
     await init_menus()
     await init_apis()
     await init_roles()
+
+    # 每次启动都检查和分配权限（确保管理员角色拥有所有权限）
+    await init_permissions_and_assign_roles()

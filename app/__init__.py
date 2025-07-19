@@ -92,11 +92,25 @@ def create_app() -> FastAPI:
     # 添加静态文件挂载
     from fastapi.staticfiles import StaticFiles
 
-    # 确保存储目录存在
-    os.makedirs(settings.local_storage_path, exist_ok=True)
+    # 注意：存储目录只在实际需要时创建，不在应用启动时自动创建
+    # 这样可以避免在不使用文件上传功能时创建不必要的目录
 
-    # 挂载静态文件目录
-    app.mount("/static", StaticFiles(directory=os.path.join(settings.BASE_DIR, "storage")), name="static")
+    # 挂载静态文件目录（如果存储目录存在的话）
+    storage_dir = os.path.join(settings.BASE_DIR, "storage")
+    if os.path.exists(storage_dir):
+        app.mount("/static", StaticFiles(directory=storage_dir), name="static")
+    else:
+        # 如果存储目录不存在，创建一个延迟挂载的处理器
+        @app.middleware("http")
+        async def ensure_static_mount(request, call_next):
+            # 检查是否是静态文件请求且存储目录现在存在
+            if request.url.path.startswith("/static") and os.path.exists(storage_dir):
+                # 如果存储目录现在存在但还没有挂载，则挂载它
+                if "static" not in [route.name for route in app.routes if hasattr(route, "name")]:
+                    app.mount("/static", StaticFiles(directory=storage_dir), name="static")
+
+            response = await call_next(request)
+            return response
 
     # 添加根路径处理
     @app.get("/")

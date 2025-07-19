@@ -98,6 +98,25 @@ aerich upgrade
 python main.py
 ```
 
+6. 自动化生成接口
+
+```sh
+# 1. 创建新的API模块后，发现模块
+python cli.py discover
+
+# 2. 查看会有什么变化
+python cli.py compare --show-details
+
+# 3. 生成新的权限配置
+python cli.py update --auto
+
+# 4. 验证配置正确性
+python cli.py validate
+
+# 5. 查看最终状态
+python cli.py status
+```
+
 服务现在应该正在运行，访问 http://localhost:9999/docs 查看 API 文档
 
 #### 方法二：使用 pip 安装依赖
