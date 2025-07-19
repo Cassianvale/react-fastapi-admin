@@ -12,6 +12,10 @@ dependencies = [
     "pydantic-settings==2.10.1",
     "starlette==0.47.1",
 
+    # Redis
+    "aioredis==2.0.1",
+    "async-timeout==5.0.1",
+
     # 服务器
     "granian==2.4.1",
 

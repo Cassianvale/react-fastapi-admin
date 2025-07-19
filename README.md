@@ -74,10 +74,11 @@ source .venv/bin/activate  # Linux/Mac
 .\.venv\Scripts\activate  # Windows
 ```
 
-3. 安装依赖
+3. 安装虚拟环境
 
 ```sh
-uv add pyproject.toml
+# 按 uv.lock 中的信息创建 .venv 并安装运行时依赖
+uv sync
 ```
 
 4. 数据库迁移（可选）
@@ -93,11 +94,8 @@ aerich upgrade
 5. 启动服务
 
 ```sh
-# 直接启动（使用 Granian 服务器）
+# 直接启动
 python main.py
-
-# 或者使用 Make 命令
-make start
 ```
 
 服务现在应该正在运行，访问 http://localhost:9999/docs 查看 API 文档

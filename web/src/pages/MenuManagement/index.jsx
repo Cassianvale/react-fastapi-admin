@@ -399,7 +399,7 @@ const MenuManagement = () => {
       key: 'status',
       width: 150,
       render: (_, record) => (
-        <div className="flex flex-col gap-1">
+        <div className="gap-1">
           <Tag color={record.is_hidden ? 'red' : 'green'}>
             {record.is_hidden ? '隐藏' : '显示'}
           </Tag>

@@ -278,7 +278,7 @@ const UserManagement = () => {
       key: 'roles',
       width: 150,
       render: (_, record) => (
-        <div className="flex flex-wrap gap-1">
+        <div className="gap-1">
           {record.roles?.length > 0 ? (
             record.roles.map(role => (
               <Tag key={role.id} color="green" className="mb-1">
@@ -296,7 +296,7 @@ const UserManagement = () => {
       key: 'status',
       width: 100,
       render: (_, record) => (
-        <div className="flex flex-col gap-1">
+        <div className="gap-1">
           <Tag color={record.is_active ? 'success' : 'error'}>
             {record.is_active ? '正常' : '禁用'}
           </Tag>

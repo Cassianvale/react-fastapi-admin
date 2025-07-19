@@ -278,7 +278,7 @@ const ApiManagement = () => {
       title: '状态',
       key: 'status',
       width: 100,
-      render: (_, record) => (
+      render: () => (
         <div className="space-y-1">
           <Tag color="green" className="text-xs">
             已同步

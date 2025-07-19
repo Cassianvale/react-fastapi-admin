@@ -84,6 +84,12 @@ const Profile = () => {
 
   // 修改密码
   const handleUpdatePassword = async (values) => {
+    // 检查密码强度
+    if (passwordStrength && passwordStrength.score < 2) {
+      showWarning('密码强度太弱，请设置更强的密码')
+      return
+    }
+
     setPasswordLoading(true)
     try {
       await api.auth.updatePassword({
@@ -92,14 +98,15 @@ const Profile = () => {
       })
       showSuccess('密码修改成功！为了安全起见，请重新登录。')
       passwordForm.resetFields()
-      
+      setPasswordStrength(null) // 重置密码强度状态
+
       // 清除登录信息并跳转到登录页
       setTimeout(() => {
         localStorage.removeItem('token')
         localStorage.removeItem('userInfo')
         navigate('/login')
       }, 1500) // 1.5秒后跳转，让用户看到成功提示
-      
+
     } catch (error) {
       // 密码修改失败时使用业务错误处理，并支持自定义处理
       handleBusinessError(error, '密码修改失败，请重试', (standardError) => {

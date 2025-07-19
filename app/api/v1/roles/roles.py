@@ -23,7 +23,11 @@ async def list_role(
     if role_name:
         q = Q(name__contains=role_name)
     total, role_objs = await role_controller.list(page=page, page_size=page_size, search=q)
-    data = [await obj.to_dict() for obj in role_objs]
+    # 获取包含统计信息的角色数据
+    data = []
+    for role_obj in role_objs:
+        role_data = await role_controller.get_role_with_stats(role_obj)
+        data.append(role_data)
     return SuccessExtra(data=data, total=total, page=page, page_size=page_size)
 
 

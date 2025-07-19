@@ -26,7 +26,6 @@ import {
   ClearOutlined,
   SettingOutlined,
   UserOutlined,
-  ApiOutlined,
   MenuOutlined
 } from '@ant-design/icons'
 import api from '@/api'
@@ -268,7 +267,7 @@ const RoleManagement = () => {
       width: 100,
       render: (_, record) => (
         <Tag color="blue">
-          {record.users?.length || 0} 人
+          {record.user_count || 0} 人
         </Tag>
       )
     },
@@ -277,16 +276,10 @@ const RoleManagement = () => {
       key: 'permission_count',
       width: 150,
       render: (_, record) => (
-        <div className="flex gap-2">
-          <Tag color="green">
-            <MenuOutlined className="mr-1" />
-            {record.menus?.length || 0} 菜单
-          </Tag>
-          <Tag color="orange">
-            <ApiOutlined className="mr-1" />
-            {record.apis?.length || 0} API
-          </Tag>
-        </div>
+        <Tag color="green">
+          <MenuOutlined className="gap-1" />
+          {record.permission_count || 0} 个权限
+        </Tag>
       )
     },
     {

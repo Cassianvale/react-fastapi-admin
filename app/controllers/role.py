@@ -48,5 +48,25 @@ class RoleController(CRUDBase[Role, RoleCreate, RoleUpdate]):
 
         return root_permissions
 
+    async def get_role_with_stats(self, role: Role) -> dict:
+        """获取包含统计信息的角色数据"""
+        from app.models.admin import User
+
+        # 获取基础角色信息
+        role_data = await role.to_dict()
+
+        # 获取用户数量（通过User模型查询）
+        user_count = await User.filter(roles=role.id).count()
+
+        # 获取权限数量
+        await role.fetch_related("permissions")
+        permission_count = len([p for p in role.permissions if p.is_active])
+
+        # 添加统计信息
+        role_data["user_count"] = user_count
+        role_data["permission_count"] = permission_count
+
+        return role_data
+
 
 role_controller = RoleController()
