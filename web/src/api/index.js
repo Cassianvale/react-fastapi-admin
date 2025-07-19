@@ -46,6 +46,7 @@ export default {
         update: (data = {}) => request.post('/api/update', data),
         delete: (data) => request.delete('/api/delete', { params: data }),
         refresh: () => request.post('/api/refresh'),
+        getTags: () => request.get('/api/tags'),
     },
 
     // 部门管理

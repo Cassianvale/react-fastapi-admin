@@ -91,6 +91,7 @@ async def init_superuser():
         )
 
 
+# 初始化生成菜单
 async def init_menus():
     menus = await Menu.exists()
     if not menus:

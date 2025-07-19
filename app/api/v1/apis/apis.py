@@ -23,7 +23,14 @@ async def list_api(
     if summary:
         q &= Q(summary__contains=summary)
     if tags:
-        q &= Q(tags__contains=tags)
+        # 支持多标签筛选：tags参数可能是逗号分隔的字符串
+        tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
+        if tag_list:
+            # 使用OR条件匹配任一标签
+            tag_q = Q()
+            for tag in tag_list:
+                tag_q |= Q(tags__contains=tag)
+            q &= tag_q
     total, api_objs = await api_controller.list(page=page, page_size=page_size, search=q, order=["tags", "id"])
     data = [await obj.to_dict() for obj in api_objs]
     return SuccessExtra(data=data, total=total, page=page, page_size=page_size)
@@ -38,14 +45,6 @@ async def get_api(
         raise RecordNotFoundError("API不存在")
     data = await api_obj.to_dict()
     return Success(data=data)
-
-
-@router.post("/create", summary="创建Api")
-async def create_api(
-    api_in: ApiCreate,
-):
-    await api_controller.create(obj_in=api_in)
-    return Success(msg="创建成功")
 
 
 @router.post("/update", summary="更新Api")
@@ -66,11 +65,23 @@ async def delete_api(
     api_obj = await api_controller.get(id=api_id)
     if not api_obj:
         raise RecordNotFoundError("API不存在")
+
+    # 删除对应的权限
+    await api_controller._delete_api_permission(api_obj)
+
+    # 删除API
     await api_controller.remove(id=api_id)
-    return Success(msg="删除成功")
+    return Success(msg="删除成功，已同步删除对应权限")
 
 
 @router.post("/refresh", summary="刷新API列表")
 async def refresh_api():
     await api_controller.refresh_api()
     return Success(msg="刷新成功")
+
+
+@router.get("/tags", summary="获取所有API标签")
+async def get_api_tags():
+    """获取系统中所有的API标签"""
+    tags = await api_controller.get_all_tags()
+    return Success(data=tags)

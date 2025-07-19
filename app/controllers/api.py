@@ -81,5 +81,47 @@ class ApiController(CRUDBase[Api, ApiCreate, ApiUpdate]):
         logger.debug(f"Permission Created: {permission.code} for API {api_obj.method.value} {api_obj.path}")
         return permission
 
+    async def _delete_api_permission(self, api_obj):
+        """删除API对应的权限"""
+        from app.models.admin import Permission
+        from app.models.enums import PermissionType
+
+        # 生成权限代码
+        permission_code = Permission.generate_permission_code(
+            permission_type=PermissionType.ACTION,
+            api_path=api_obj.path,
+            api_method=api_obj.method.value,
+        )
+
+        # 查找并删除权限
+        permission = await Permission.filter(code=permission_code).first()
+        if permission:
+            await permission.delete()
+            logger.debug(f"Permission Deleted: {permission.code} for API {api_obj.method.value} {api_obj.path}")
+
+        return True
+
+    async def get_all_tags(self):
+        """获取所有API标签"""
+        # 获取所有API的标签
+        apis = await Api.all()
+        tags = []
+        tag_counts = {}
+
+        for api in apis:
+            if api.tags and api.tags.strip():
+                tag = api.tags.strip()
+                if tag not in tag_counts:
+                    tag_counts[tag] = 0
+                tag_counts[tag] += 1
+
+        # 按使用频率排序，返回标签和对应的API数量
+        sorted_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
+
+        for tag, count in sorted_tags:
+            tags.append({"label": tag, "value": tag, "count": count})
+
+        return tags
+
 
 api_controller = ApiController()

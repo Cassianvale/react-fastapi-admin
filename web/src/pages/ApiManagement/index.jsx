@@ -16,7 +16,6 @@ import {
   Select
 } from 'antd'
 import {
-  PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SearchOutlined,
@@ -24,7 +23,8 @@ import {
   ClearOutlined,
   ApiOutlined,
   SyncOutlined,
-  QuestionCircleOutlined
+  QuestionCircleOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons'
 import api from '@/api'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
@@ -43,6 +43,7 @@ const ApiManagement = () => {
   // 搜索状态
   const [searchForm] = Form.useForm()
   const [searchParams, setSearchParams] = useState({})
+  const [availableTags, setAvailableTags] = useState([])
   
   // 模态框状态
   const [modalVisible, setModalVisible] = useState(false)
@@ -74,7 +75,8 @@ const ApiManagement = () => {
         ...search
       }
       const response = await api.apis.getList(params)
-      setApis(response.data || [])
+      const apiList = response.data || []
+      setApis(apiList)
       setTotal(response.total || 0)
       setCurrentPage(response.page || page)
       setPageSize(response.page_size || size)
@@ -85,9 +87,20 @@ const ApiManagement = () => {
     }
   }
 
+  // 获取所有API标签
+  const fetchAllTags = async () => {
+    try {
+      const response = await api.apis.getTags()
+      setAvailableTags(response.data || [])
+    } catch (error) {
+      handleError(error, '获取API标签失败')
+    }
+  }
+
   // 初始化数据
   useEffect(() => {
     fetchApis()
+    fetchAllTags()
   }, [])
 
   // 搜索处理
@@ -95,8 +108,11 @@ const ApiManagement = () => {
     const params = {}
     if (values.path) params.path = values.path
     if (values.summary) params.summary = values.summary
-    if (values.tags) params.tags = values.tags
-    
+    if (values.tags && values.tags.length > 0) {
+      // 多标签筛选：将数组转换为逗号分隔的字符串
+      params.tags = Array.isArray(values.tags) ? values.tags.join(',') : values.tags
+    }
+
     setSearchParams(params)
     setCurrentPage(1)
     await fetchApis(1, pageSize, params)
@@ -117,27 +133,21 @@ const ApiManagement = () => {
     await fetchApis(page, size, searchParams)
   }
 
-  // 打开添加/编辑模态框
-  const handleOpenModal = (apiItem = null) => {
+  // 打开编辑模态框
+  const handleOpenModal = (apiItem) => {
+    if (!apiItem) return // 只允许编辑，不允许创建
+
     setEditingApi(apiItem)
     setModalVisible(true)
-    
-    if (apiItem) {
-      // 编辑模式
-      modalForm.setFieldsValue({
-        id: apiItem.id,
-        path: apiItem.path || '',
-        method: apiItem.method || 'GET',
-        summary: apiItem.summary || '',
-        tags: apiItem.tags || ''
-      })
-    } else {
-      // 添加模式
-      modalForm.resetFields()
-      modalForm.setFieldsValue({
-        method: 'GET'
-      })
-    }
+
+    // 编辑模式 - 只允许编辑描述和标签
+    modalForm.setFieldsValue({
+      id: apiItem.id,
+      path: apiItem.path || '',
+      method: apiItem.method || 'GET',
+      summary: apiItem.summary || '',
+      tags: apiItem.tags || ''
+    })
   }
 
   // 关闭模态框
@@ -149,21 +159,23 @@ const ApiManagement = () => {
 
   // 保存API
   const handleSaveApi = async (values) => {
+    if (!editingApi) return // 只允许更新，不允许创建
+
     setModalLoading(true)
     try {
-      if (editingApi) {
-        // 更新API
-        await api.apis.update({ ...values, id: editingApi.id })
-        showSuccess('API更新成功')
-      } else {
-        // 创建API
-        await api.apis.create(values)
-        showSuccess('API创建成功')
-      }
+      // 更新API - 只允许更新描述和标签
+      await api.apis.update({
+        ...values,
+        id: editingApi.id,
+        path: editingApi.path, // 保持原路径不变
+        method: editingApi.method // 保持原方法不变
+      })
+      showSuccess('API信息更新成功')
+
       handleCloseModal()
       await fetchApis()
     } catch (error) {
-      handleBusinessError(error, editingApi ? 'API更新失败' : 'API创建失败')
+      handleBusinessError(error, 'API更新失败')
     } finally {
       setModalLoading(false)
     }
@@ -185,8 +197,9 @@ const ApiManagement = () => {
     setRefreshLoading(true)
     try {
       await api.apis.refresh()
-      showSuccess('API列表刷新成功')
+      showSuccess('API列表刷新成功，已自动生成新API的权限记录')
       await fetchApis()
+      await fetchAllTags() // 刷新后重新获取标签列表
     } catch (error) {
       handleBusinessError(error, 'API刷新失败')
     } finally {
@@ -200,29 +213,43 @@ const ApiManagement = () => {
     return methodObj ? methodObj.color : 'default'
   }
 
+  // 生成权限代码预览
+  const generatePermissionCode = (path, method) => {
+    if (!path || !method) return '-'
+
+    const pathParts = path.replace(/^\//, '').split('/')
+    const cleanParts = pathParts.filter(part => !['api', 'v1'].includes(part))
+
+    if (cleanParts.length >= 2) {
+      const module = cleanParts[0]
+      const action = cleanParts[1]
+      return `api.${module}.${action}.${method.toLowerCase()}`
+    }
+    return `api.${cleanParts.join('.')}.${method.toLowerCase()}`
+  }
+
   // 表格列定义
   const columns = [
     {
-      title: 'API路径',
-      dataIndex: 'path',
-      key: 'path',
-      width: 300,
-      render: (text) => (
-        <div className="flex items-center">
-          <ApiOutlined className="mr-2 text-blue-500" />
-          <code className="bg-gray-100 px-2 py-1 rounded text-sm">{text || '-'}</code>
+      title: 'API信息',
+      key: 'api_info',
+      width: 350,
+      render: (_, record) => (
+        <div className="space-y-2">
+          <div className="flex items-center">
+            <Tag color={getMethodColor(record.method)} className="font-mono mr-2">
+              {record.method}
+            </Tag>
+            <code className="bg-gray-100 px-2 py-1 rounded text-sm flex-1">
+              {record.path || '-'}
+            </code>
+          </div>
+          <div className="text-xs text-gray-500 pl-1">
+            权限代码: <code className="bg-blue-50 text-blue-600 px-1 rounded">
+              {generatePermissionCode(record.path, record.method)}
+            </code>
+          </div>
         </div>
-      )
-    },
-    {
-      title: '请求方法',
-      dataIndex: 'method',
-      key: 'method',
-      width: 100,
-      render: (method) => (
-        <Tag color={getMethodColor(method)} className="font-mono">
-          {method}
-        </Tag>
       )
     },
     {
@@ -230,7 +257,13 @@ const ApiManagement = () => {
       dataIndex: 'summary',
       key: 'summary',
       width: 250,
-      render: (text) => text || '-'
+      render: (text) => (
+        <div className="max-w-xs">
+          <div className="truncate" title={text}>
+            {text || '-'}
+          </div>
+        </div>
+      )
     },
     {
       title: 'API标签',
@@ -239,6 +272,21 @@ const ApiManagement = () => {
       width: 120,
       render: (tags) => (
         <Tag color="cyan">{tags || '未分类'}</Tag>
+      )
+    },
+    {
+      title: '状态',
+      key: 'status',
+      width: 100,
+      render: (_, record) => (
+        <div className="space-y-1">
+          <Tag color="green" className="text-xs">
+            已同步
+          </Tag>
+          <div className="text-xs text-gray-400">
+            权限已生成
+          </div>
+        </div>
       )
     },
     {
@@ -255,7 +303,7 @@ const ApiManagement = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="编辑">
+          <Tooltip title="编辑API">
             <Button
               type="primary"
               size="small"
@@ -263,10 +311,10 @@ const ApiManagement = () => {
               onClick={() => handleOpenModal(record)}
             />
           </Tooltip>
-          <Tooltip title="删除">
+          <Tooltip title="删除API和权限">
             <Popconfirm
               title="确认删除API？"
-              description="删除后无法恢复，请谨慎操作"
+              description="删除后将同时删除对应的权限记录，无法恢复"
               onConfirm={() => handleDeleteApi(record.id)}
               okText="确认"
               cancelText="取消"
@@ -294,9 +342,13 @@ const ApiManagement = () => {
             <Tooltip
               title={
                 <div className="text-sm max-w-sm">
-                  <div className="font-medium mb-1">API管理说明：</div>
-                  <div>点击'刷新API'按钮可以自动从系统中扫描所有API接口并同步到数据库。</div>
-                  <div>手动添加的API接口主要用于权限控制配置。</div>
+                  <div className="font-medium mb-2">自动API管理说明：</div>
+                  <div className="mb-1">• 系统自动扫描所有API接口，无需手动创建</div>
+                  <div className="mb-1">• 自动为每个API生成对应的权限记录</div>
+                  <div className="mb-1">• 权限代码格式：api.模块.操作.方法</div>
+                  <div className="mb-1">• 只能编辑API描述和标签，路径和方法不可修改</div>
+                  <div className="mb-1">• 删除API时会同步删除对应权限</div>
+                  <div>• 代码更新后，重新扫描即可同步最新API</div>
                 </div>
               }
               placement="right"
@@ -304,25 +356,17 @@ const ApiManagement = () => {
               <QuestionCircleOutlined className="ml-2 text-gray-400 hover:text-blue-500 cursor-help text-base" />
             </Tooltip>
           </div>
-          <p className="text-gray-500 mt-1">管理系统API接口，控制接口访问权限</p>
+          <p className="text-gray-500 mt-1">自动管理系统API接口，扫描代码生成权限记录，无需手动维护</p>
         </div>
         <Space>
           <Button
-            type="default"
+            type="primary"
             icon={<SyncOutlined spin={refreshLoading} />}
             onClick={handleRefreshApis}
             loading={refreshLoading}
-            className="border-green-500 text-green-500 hover:bg-green-50"
+            className="bg-gradient-to-r from-green-500 to-green-600"
           >
-            刷新API
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => handleOpenModal()}
-            className="bg-gradient-to-r from-blue-500 to-blue-600"
-          >
-            新增API
+            {refreshLoading ? '扫描中...' : '扫描系统API'}
           </Button>
         </Space>
       </div>
@@ -359,12 +403,32 @@ const ApiManagement = () => {
                />
              </Form.Item>
              <Form.Item name="tags" className="mb-2">
-               <Input
+               <Select
                  id="search_api_tags"
-                 placeholder="API标签"
+                 mode="multiple"
+                 placeholder={`选择标签 (${availableTags.length}个)`}
                  allowClear
-                 style={{ width: 150 }}
-               />
+                 showSearch
+                 filterOption={(input, option) => {
+                   const tagLabel = option?.label || '';
+                   return tagLabel.toLowerCase().includes(input.toLowerCase());
+                 }}
+                 style={{ width: 200 }}
+                 popupMatchSelectWidth={false}
+                 listHeight={200}
+                 notFoundContent="未找到匹配的标签"
+                 maxTagCount={2}
+                 maxTagPlaceholder={(omittedValues) => `+${omittedValues.length}个标签`}
+               >
+                 {availableTags.map(tag => (
+                   <Option key={tag.value} value={tag.value} label={tag.label}>
+                     <div className="flex items-center justify-between">
+                       <Tag color="cyan" size="small">{tag.label}</Tag>
+                       <span className="text-xs text-gray-400">({tag.count}个API)</span>
+                     </div>
+                   </Option>
+                 ))}
+               </Select>
              </Form.Item>
             <Form.Item className="mb-2">
               <Space>
@@ -435,12 +499,12 @@ const ApiManagement = () => {
         </div>
       </Card>
 
-      {/* 添加/编辑API模态框 */}
+      {/* 编辑API模态框 */}
       <Modal
         title={
           <div className="flex items-center">
             <ApiOutlined className="mr-2 text-blue-500" />
-            {editingApi ? '编辑API' : '新增API'}
+            编辑API信息
           </div>
         }
         open={modalVisible}
@@ -469,41 +533,44 @@ const ApiManagement = () => {
         >
           <Row gutter={16}>
             <Col span={16}>
-                               <Form.Item
-                   label="API路径"
-                   name="path"
-                   rules={[
-                     { required: true, message: '请输入API路径' },
-                     { pattern: /^\//, message: 'API路径必须以/开头' }
-                   ]}
-                 >
-                   <Input 
-                     id="modal_api_path"
-                     placeholder="例如: /api/v1/users" 
-                   />
-                 </Form.Item>
+              <Form.Item
+                label="API路径"
+                name="path"
+              >
+                <Input
+                  id="modal_api_path"
+                  disabled
+                  className="bg-gray-50"
+                />
+              </Form.Item>
                </Col>
                <Col span={8}>
-                 <Form.Item
-                   label="请求方法"
-                   name="method"
-                   rules={[{ required: true, message: '请选择请求方法' }]}
-                 >
-                   <Select 
-                     id="modal_api_method"
-                     placeholder="请选择"
-                   >
-                     {httpMethods.map(method => (
-                       <Option key={method.value} value={method.value}>
-                         <Tag color={method.color}>{method.label}</Tag>
-                       </Option>
-                     ))}
-                   </Select>
-                 </Form.Item>
+              <Form.Item
+                label="请求方法"
+                name="method"
+              >
+                <Select
+                  id="modal_api_method"
+                  disabled
+                  className="bg-gray-50"
+                >
+                  {httpMethods.map(method => (
+                    <Option key={method.value} value={method.value}>
+                      <Tag color={method.color}>{method.label}</Tag>
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
             </Col>
           </Row>
 
-                     <Form.Item
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+            <div className="text-sm text-blue-600">
+              <strong>说明：</strong>API路径和方法由系统自动扫描生成，不可修改。您只能编辑API的描述和标签信息。
+            </div>
+          </div>
+
+          <Form.Item
              label="API描述"
              name="summary"
              rules={[
