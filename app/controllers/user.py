@@ -71,10 +71,7 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
             role_obj = await role_controller.get(id=role_id)
             await user.roles.add(role_obj)
 
-        # 清除用户的权限缓存
-        from app.controllers.permission import permission_controller
-
-        permission_controller.clear_user_cache(user.id)
+        # 权限缓存已移除 - 系统简化后不再需要缓存清理
 
     async def reset_password(self, user_id: int, new_password: str = "123456"):
         user_obj = await self.get(id=user_id)

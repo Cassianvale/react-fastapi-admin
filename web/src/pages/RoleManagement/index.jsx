@@ -13,9 +13,7 @@ import {
   Popconfirm,
   Pagination,
   Divider,
-  Tooltip,
-  Tree,
-  Tabs
+  Tooltip
 } from 'antd'
 import {
   PlusOutlined,
@@ -24,9 +22,7 @@ import {
   SearchOutlined,
   ReloadOutlined,
   ClearOutlined,
-  SettingOutlined,
-  UserOutlined,
-  MenuOutlined
+  UserOutlined
 } from '@ant-design/icons'
 import api from '@/api'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
@@ -51,12 +47,7 @@ const RoleManagement = () => {
   const [editingRole, setEditingRole] = useState(null)
   const [modalLoading, setModalLoading] = useState(false)
   
-  // 权限配置状态
-  const [permissionModalVisible, setPermissionModalVisible] = useState(false)
-  const [currentRole, setCurrentRole] = useState(null)
-  const [permissions, setPermissions] = useState([])
-  const [selectedPermissions, setSelectedPermissions] = useState([])
-  const [permissionLoading, setPermissionLoading] = useState(false)
+
   
   const { handleError, handleBusinessError, showSuccess } = useErrorHandler()
 
@@ -81,20 +72,9 @@ const RoleManagement = () => {
     }
   }
 
-  // 获取权限数据 - 从现有权限中构建树结构
-  const fetchPermissions = async () => {
-    try {
-      // 从角色权限中获取所有权限或者直接使用静态的权限树结构
-      setPermissions([]) // 暂时设为空，权限树将在角色权限分配时动态获取
-    } catch (error) {
-      handleError(error, '获取权限数据失败')
-    }
-  }
-
   // 初始化数据
   useEffect(() => {
     fetchRoles()
-    fetchPermissions()
   }, [])
 
   // 处理模态框表单数据设置
@@ -185,58 +165,7 @@ const RoleManagement = () => {
     }
   }
 
-  // 打开权限配置
-  const handleOpenPermissionModal = async (role) => {
-    setCurrentRole(role)
-    setPermissionModalVisible(true)
-    setPermissionLoading(true)
 
-    try {
-      // 获取角色的权限信息（树形结构）
-      const response = await api.roles.getPermissions(role.id)
-      const rolePermissionsTree = response.data || []
-
-      // 从树形结构中提取所有权限ID
-      const extractPermissionIds = (tree) => {
-        let ids = []
-        tree.forEach(item => {
-          ids.push(item.id)
-          if (item.children && item.children.length > 0) {
-            ids = ids.concat(extractPermissionIds(item.children))
-          }
-        })
-        return ids
-      }
-
-      const permissionIds = extractPermissionIds(rolePermissionsTree)
-      setSelectedPermissions(permissionIds)
-
-      // 同时设置权限树数据供显示使用
-      setPermissions(rolePermissionsTree)
-    } catch (error) {
-      handleError(error, '获取角色权限失败')
-    } finally {
-      setPermissionLoading(false)
-    }
-  }
-
-  // 保存权限配置
-  const handleSavePermission = async () => {
-    setPermissionLoading(true)
-    try {
-      await api.roles.updatePermissions({
-        id: currentRole.id,
-        permission_ids: selectedPermissions
-      })
-
-      showSuccess('权限配置保存成功')
-      setPermissionModalVisible(false)
-    } catch (error) {
-      handleBusinessError(error, '权限配置保存失败')
-    } finally {
-      setPermissionLoading(false)
-    }
-  }
 
 
 
@@ -271,39 +200,7 @@ const RoleManagement = () => {
         </Tag>
       )
     },
-    {
-      title: '权限数量',
-      key: 'permission_count',
-      width: 200,
-      render: (_, record) => {
-        const stats = record.permission_stats || {}
-        const parentCount = stats.parent_menu_count || 0
-        const subCount = stats.sub_menu_count || 0
-        const apiCount = stats.api_count || 0
-        const totalCount = stats.total_count || record.permission_count || 0
 
-        return (
-          <div className="space-y-1">
-            <div className="flex items-center space-x-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
-              <span className="text-xs text-gray-600">父菜单: {parentCount}</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
-              <span className="text-xs text-gray-600">子菜单: {subCount}</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-orange-500"></span>
-              <span className="text-xs text-gray-600">接口: {apiCount}</span>
-            </div>
-            <Tag color="purple" size="small">
-              <MenuOutlined className="mr-1" />
-              总计: {totalCount}
-            </Tag>
-          </div>
-        )
-      }
-    },
     {
       title: '创建时间',
       dataIndex: 'created_at',
@@ -326,14 +223,7 @@ const RoleManagement = () => {
               onClick={() => handleOpenModal(record)}
             />
           </Tooltip>
-          <Tooltip title="权限配置">
-            <Button
-              size="small"
-              icon={<SettingOutlined />}
-              className="text-purple-500 border-purple-500 hover:bg-purple-50"
-              onClick={() => handleOpenPermissionModal(record)}
-            />
-          </Tooltip>
+
           <Tooltip title="删除">
             <Popconfirm
               title="确认删除角色？"
@@ -361,7 +251,7 @@ const RoleManagement = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">角色管理</h1>
-          <p className="text-gray-500 mt-1">管理系统角色权限，分配菜单和API访问权限</p>
+          <p className="text-gray-500 mt-1">管理系统角色信息，创建和维护角色基本信息</p>
         </div>
         <Button
           type="primary"
@@ -531,88 +421,11 @@ const RoleManagement = () => {
         </Form>
       </Modal>
 
-      {/* 权限配置模态框 */}
-      <Modal
-        title={
-          <div className="flex items-center">
-            <SettingOutlined className="mr-2 text-purple-500" />
-            权限配置 - {currentRole?.name}
-          </div>
-        }
-        open={permissionModalVisible}
-        onCancel={() => setPermissionModalVisible(false)}
-        width={800}
-        footer={[
-          <Button key="cancel" onClick={() => setPermissionModalVisible(false)}>
-            取消
-          </Button>,
-          <Button
-            key="submit"
-            type="primary"
-            loading={permissionLoading}
-            onClick={handleSavePermission}
-          >
-            保存配置
-          </Button>
-        ]}
-        destroyOnHidden
-      >
-        <div className="space-y-4">
-          <div className="text-sm text-gray-600 mb-4">
-            为角色 <strong>{currentRole?.name}</strong> 分配权限。权限采用层次化结构，选择父权限会自动包含子权限。
-          </div>
 
-          <Tree
-            checkable
-            checkedKeys={selectedPermissions}
-            onCheck={(checkedKeys) => {
-              setSelectedPermissions(Array.isArray(checkedKeys) ? checkedKeys : checkedKeys.checked)
-            }}
-            treeData={buildPermissionTree(permissions)}
-            height={400}
-            showIcon
-            defaultExpandAll
-          />
-        </div>
-      </Modal>
     </div>
   )
 }
 
-// 辅助函数：构建权限树
-const buildPermissionTree = (permissions) => {
-  if (!permissions || !Array.isArray(permissions)) {
-    return []
-  }
 
-  const buildTree = (items) => {
-    return items.map(item => ({
-      title: (
-        <div className="flex items-center space-x-2">
-          <span className={`inline-block w-2 h-2 rounded-full ${
-            item.permission_type === 'module' ? 'bg-blue-500' :
-            item.permission_type === 'feature' ? 'bg-green-500' :
-            'bg-orange-500'
-          }`} />
-          <span className="font-medium">{item.name}</span>
-          {item.api_path && (
-            <span className="text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded">
-              {item.api_method} {item.api_path}
-            </span>
-          )}
-          {item.menu_path && (
-            <span className="text-xs text-green-400 bg-green-50 px-2 py-1 rounded">
-              菜单: {item.menu_path}
-            </span>
-          )}
-        </div>
-      ),
-      key: item.id,
-      children: item.children && item.children.length > 0 ? buildTree(item.children) : undefined
-    }))
-  }
-
-  return buildTree(permissions)
-}
 
 export default RoleManagement

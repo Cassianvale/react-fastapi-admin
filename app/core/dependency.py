@@ -237,12 +237,12 @@ class AuthControl:
 
 
 class PermissionControl:
-    """权限控制器"""
+    """简化的权限控制器 - 只检查超级用户权限"""
 
     @classmethod
     async def has_permission(cls, request: Request, current_user: User = Depends(AuthControl.is_authed)) -> None:
         """
-        检查用户是否有权限访问指定资源
+        简化的权限检查 - 只允许超级用户访问
         :param request: 请求对象
         :param current_user: 当前用户
         """
@@ -250,25 +250,15 @@ class PermissionControl:
         if current_user.is_superuser:
             return
 
+        # 非超级用户禁止访问需要权限的资源
         method = request.method
         path = request.url.path
-
-        # 使用新的权限模型检查权限
-        from app.controllers.permission import permission_controller
-
-        has_permission = await permission_controller.check_user_api_permission(current_user.id, path, method)
-        if not has_permission:
-            raise AuthorizationError(f"权限不足 - 方法:{method} 路径:{path}")
+        raise AuthorizationError(f"权限不足 - 方法:{method} 路径:{path}")
 
     @classmethod
     async def check_permission_by_code(cls, current_user: User, permission_code: str) -> bool:
-        """根据权限代码检查权限"""
-        if current_user.is_superuser:
-            return True
-
-        from app.controllers.permission import permission_controller
-
-        return await permission_controller.check_user_permission(current_user.id, permission_code)
+        """简化的权限代码检查 - 只检查超级用户"""
+        return current_user.is_superuser
 
 
 async def get_page_params(

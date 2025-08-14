@@ -17,7 +17,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:9999', // 修正FastAPI后端地址端口
+        target: 'http://127.0.0.1:9999', // 使用 127.0.0.1 避免 IPv6 问题
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api/v1')
       }

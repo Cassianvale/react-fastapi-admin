@@ -72,24 +72,4 @@ async def delete_role(
     return Success(msg="删除成功")
 
 
-@router.get("/permissions", summary="查看角色权限")
-async def get_role_permissions(role_id: int = Query(..., description="角色ID")):
-    """获取角色的权限列表（树形结构）"""
-    role_obj = await role_controller.get(id=role_id)
-    if not role_obj:
-        raise RecordNotFoundError("角色不存在")
 
-    # 返回树形结构的权限数据
-    permissions_tree = await role_controller.get_role_permissions_tree(role_id)
-    return Success(data=permissions_tree)
-
-
-@router.post("/permissions", summary="更新角色权限")
-async def update_role_permissions(role_in: RoleUpdatePermissions):
-    """更新角色权限"""
-    role_obj = await role_controller.get(id=role_in.id)
-    if not role_obj:
-        raise RecordNotFoundError("角色不存在")
-
-    await role_controller.update_role_permissions(role=role_obj, permission_ids=role_in.permission_ids)
-    return Success(msg="权限更新成功")

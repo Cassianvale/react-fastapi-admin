@@ -197,7 +197,7 @@ const ApiManagement = () => {
     setRefreshLoading(true)
     try {
       await api.apis.refresh()
-      showSuccess('API列表刷新成功，已自动生成新API的权限记录')
+      showSuccess('API列表刷新成功')
       await fetchApis()
       await fetchAllTags() // 刷新后重新获取标签列表
     } catch (error) {
@@ -213,20 +213,7 @@ const ApiManagement = () => {
     return methodObj ? methodObj.color : 'default'
   }
 
-  // 生成权限代码预览
-  const generatePermissionCode = (path, method) => {
-    if (!path || !method) return '-'
 
-    const pathParts = path.replace(/^\//, '').split('/')
-    const cleanParts = pathParts.filter(part => !['api', 'v1'].includes(part))
-
-    if (cleanParts.length >= 2) {
-      const module = cleanParts[0]
-      const action = cleanParts[1]
-      return `api.${module}.${action}.${method.toLowerCase()}`
-    }
-    return `api.${cleanParts.join('.')}.${method.toLowerCase()}`
-  }
 
   // 表格列定义
   const columns = [
@@ -244,11 +231,7 @@ const ApiManagement = () => {
               {record.path || '-'}
             </code>
           </div>
-          <div className="text-xs text-gray-500 pl-1">
-            权限代码: <code className="bg-blue-50 text-blue-600 px-1 rounded">
-              {generatePermissionCode(record.path, record.method)}
-            </code>
-          </div>
+
         </div>
       )
     },
@@ -283,9 +266,6 @@ const ApiManagement = () => {
           <Tag color="green" className="text-xs">
             已同步
           </Tag>
-          <div className="text-xs text-gray-400">
-            权限已生成
-          </div>
         </div>
       )
     },
@@ -311,10 +291,10 @@ const ApiManagement = () => {
               onClick={() => handleOpenModal(record)}
             />
           </Tooltip>
-          <Tooltip title="删除API和权限">
+          <Tooltip title="删除API">
             <Popconfirm
               title="确认删除API？"
-              description="删除后将同时删除对应的权限记录，无法恢复"
+              description="删除后无法恢复"
               onConfirm={() => handleDeleteApi(record.id)}
               okText="确认"
               cancelText="取消"
@@ -342,12 +322,9 @@ const ApiManagement = () => {
             <Tooltip
               title={
                 <div className="text-sm max-w-sm">
-                  <div className="font-medium mb-2">自动API管理说明：</div>
+                  <div className="font-medium mb-2">API管理说明：</div>
                   <div className="mb-1">• 系统自动扫描所有API接口，无需手动创建</div>
-                  <div className="mb-1">• 自动为每个API生成对应的权限记录</div>
-                  <div className="mb-1">• 权限代码格式：api.模块.操作.方法</div>
                   <div className="mb-1">• 只能编辑API描述和标签，路径和方法不可修改</div>
-                  <div className="mb-1">• 删除API时会同步删除对应权限</div>
                   <div>• 代码更新后，重新扫描即可同步最新API</div>
                 </div>
               }
@@ -356,7 +333,7 @@ const ApiManagement = () => {
               <QuestionCircleOutlined className="ml-2 text-gray-400 hover:text-blue-500 cursor-help text-base" />
             </Tooltip>
           </div>
-          <p className="text-gray-500 mt-1">自动管理系统API接口，扫描代码生成权限记录，无需手动维护</p>
+          <p className="text-gray-500 mt-1">自动管理系统API接口，扫描代码同步接口信息，无需手动维护</p>
         </div>
         <Space>
           <Button

@@ -10,7 +10,6 @@ import Profile from '@/pages/Profile'
 import UserManagement from '@/pages/UserManagement'
 import RoleManagement from '@/pages/RoleManagement'
 import ApiManagement from '@/pages/ApiManagement'
-import MenuManagement from '@/pages/MenuManagement'
 import { NotFoundPage } from '@/pages/ErrorPages'
 
 const router = createBrowserRouter([
@@ -53,10 +52,6 @@ const router = createBrowserRouter([
           {
             path: 'apis',
             element: <ApiManagement />,
-          },
-          {
-            path: 'menus',
-            element: <MenuManagement />,
           },
           {
             path: 'departments',

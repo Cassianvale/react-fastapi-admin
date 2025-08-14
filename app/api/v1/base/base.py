@@ -8,7 +8,7 @@ from app.controllers.user import user_controller
 from app.core.ctx import CTX_USER_ID
 from app.core.dependency import DependAuth, AuthControl
 from app.core.exceptions import AuthenticationError, ValidationError
-from app.models.admin import Api, Menu, Role, User
+from app.models.admin import Api, Role, User
 from app.schemas.base import Fail, Success
 from app.schemas.login import *
 from app.schemas.users import UpdatePassword, ProfileUpdate
@@ -170,7 +170,7 @@ async def get_user_menu():
     获取当前用户的菜单权限
 
     Returns:
-        用户有权限的菜单树结构（不包含隐藏菜单）
+        用户有权限的菜单树结构（静态菜单配置）
 
     Raises:
         AuthenticationError: 当用户不存在时抛出
@@ -183,37 +183,85 @@ async def get_user_menu():
     if not user_obj:
         raise AuthenticationError("用户不存在")
 
-    # 使用新的权限模型构建菜单
-    from app.controllers.permission import permission_controller
+    # 返回静态菜单结构，不再依赖数据库中的菜单表
+    static_menus = [
+        {
+            "id": 1,
+            "name": "系统管理",
+            "path": "/system",
+            "icon": "carbon:gui-management",
+            "order": 1,
+            "parent_id": 0,
+            "is_hidden": False,
+            "component": "Layout",
+            "keepalive": False,
+            "redirect": "/system/users",
+            "children": [
+                {
+                    "id": 2,
+                    "name": "用户管理",
+                    "path": "users",
+                    "icon": "ph:user-list-bold",
+                    "order": 1,
+                    "parent_id": 1,
+                    "is_hidden": False,
+                    "component": "/system/users",
+                    "keepalive": False,
+                    "redirect": None
+                },
+                {
+                    "id": 3,
+                    "name": "角色管理",
+                    "path": "roles",
+                    "icon": "carbon:user-role",
+                    "order": 2,
+                    "parent_id": 1,
+                    "is_hidden": False,
+                    "component": "/system/roles",
+                    "keepalive": False,
+                    "redirect": None
+                },
+                {
+                    "id": 4,
+                    "name": "API管理",
+                    "path": "apis",
+                    "icon": "ant-design:api-outlined",
+                    "order": 3,
+                    "parent_id": 1,
+                    "is_hidden": False,
+                    "component": "/system/apis",
+                    "keepalive": False,
+                    "redirect": None
+                },
+                {
+                    "id": 5,
+                    "name": "部门管理",
+                    "path": "departments",
+                    "icon": "mingcute:department-line",
+                    "order": 4,
+                    "parent_id": 1,
+                    "is_hidden": False,
+                    "component": "/system/departments",
+                    "keepalive": False,
+                    "redirect": None
+                },
+                {
+                    "id": 6,
+                    "name": "审计日志",
+                    "path": "audit",
+                    "icon": "ph:clipboard-text-bold",
+                    "order": 5,
+                    "parent_id": 1,
+                    "is_hidden": False,
+                    "component": "/system/audit",
+                    "keepalive": False,
+                    "redirect": None
+                }
+            ]
+        }
+    ]
 
-    if user_obj.is_superuser:
-        # 超级用户获取所有非隐藏菜单
-        menus = await Menu.filter(is_hidden=False).all()
-    else:
-        # 普通用户根据权限获取菜单
-        menu_permissions = await permission_controller.get_user_menu_permissions(user_id)
-        menus = await _build_menus_from_permissions(menu_permissions)
-
-    # 获取父级菜单（只包含非隐藏菜单）
-    parent_menus: list[Menu] = []
-    for menu in menus:
-        if menu.parent_id == 0:
-            parent_menus.append(menu)
-
-    # 构建菜单树
-    res = []
-    for parent_menu in parent_menus:
-        parent_menu_dict = await parent_menu.to_dict()
-        parent_menu_dict["children"] = []
-
-        # 添加子菜单（只包含非隐藏菜单）
-        for menu in menus:
-            if menu.parent_id == parent_menu.id:
-                parent_menu_dict["children"].append(await menu.to_dict())
-
-        res.append(parent_menu_dict)
-
-    return Success(data=res)
+    return Success(data=static_menus)
 
 
 @router.get("/userapi", summary="查看用户API", dependencies=[DependAuth])
@@ -235,17 +283,14 @@ async def get_user_api():
     if not user_obj:
         raise AuthenticationError("用户不存在")
 
-    # 使用新的权限模型获取API权限
-    from app.controllers.permission import permission_controller
-
+    # 简化的API权限获取逻辑
     if user_obj.is_superuser:
         # 超级用户获取所有API
         api_objs: list[Api] = await Api.all()
         apis = [api.method.lower() + api.path for api in api_objs]
     else:
-        # 普通用户根据权限获取API
-        api_permissions = await permission_controller.get_user_api_permissions(user_id)
-        apis = [perm.api_method.lower() + perm.api_path for perm in api_permissions]
+        # 普通用户暂时没有API权限（系统已简化）
+        apis = []
 
     return Success(data=apis)
 
@@ -354,27 +399,4 @@ async def logout(token: str = Header(..., description="token验证")):
         raise AuthenticationError(f"注销失败: {str(e)}")
 
 
-# 辅助函数
-async def _build_menus_from_permissions(menu_permissions) -> list[Menu]:
-    """从权限模型构建菜单列表"""
-    # 根据权限构建菜单
-    menu_paths = [perm.menu_path for perm in menu_permissions if perm.menu_path and not perm.is_hidden]
-    if not menu_paths:
-        return []
 
-    # 查询对应的菜单
-    menus = await Menu.filter(path__in=menu_paths, is_hidden=False).all()
-
-    # 获取父菜单
-    parent_ids = set()
-    for menu in menus:
-        if menu.parent_id != 0:
-            parent_ids.add(menu.parent_id)
-
-    if parent_ids:
-        parent_menus = await Menu.filter(id__in=parent_ids, is_hidden=False)
-        menus.extend(parent_menus)
-        # 去重
-        menus = list(set(menus))
-
-    return menus

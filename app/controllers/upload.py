@@ -4,10 +4,17 @@ import shutil
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union
 
-import oss2
 from fastapi import HTTPException, UploadFile, status
 
 from app.settings.config import settings
+
+# 条件导入 oss2，如果不存在则设为 None
+try:
+    import oss2
+    OSS_AVAILABLE = True
+except ImportError:
+    oss2 = None
+    OSS_AVAILABLE = False
 
 
 class UploadController:
@@ -191,8 +198,8 @@ class UploadController:
         Raises:
             HTTPException: 上传失败时抛出异常
         """
-        # 如果OSS未启用，使用本地存储
-        if not settings.OSS_ENABLED:
+        # 如果OSS未启用或oss2模块不可用，使用本地存储
+        if not settings.OSS_ENABLED or not OSS_AVAILABLE:
             return await self.upload_to_local(file_content, oss_file_name, file_type)
 
         # 初始化OSS客户端
@@ -302,6 +309,10 @@ class UploadController:
         Returns:
             List[Dict]: 文件信息列表
         """
+        # 如果OSS未启用或oss2模块不可用，返回空列表
+        if not settings.OSS_ENABLED or not OSS_AVAILABLE:
+            return []
+
         try:
             # 初始化OSS客户端
             auth = oss2.Auth(settings.OSS_ACCESS_KEY_ID, settings.OSS_ACCESS_KEY_SECRET)
@@ -402,8 +413,8 @@ class UploadController:
         Returns:
             bool: 是否删除成功
         """
-        # 检查是否为本地存储路径
-        if not settings.OSS_ENABLED or file_key.startswith(settings.LOCAL_STORAGE_URL_PREFIX):
+        # 检查是否为本地存储路径或OSS不可用
+        if not settings.OSS_ENABLED or not OSS_AVAILABLE or file_key.startswith(settings.LOCAL_STORAGE_URL_PREFIX):
             return await self.delete_local_file(file_key)
 
         try:
@@ -428,6 +439,15 @@ class UploadController:
         Returns:
             Dict: 处理结果
         """
+        # 如果OSS未启用或oss2模块不可用，返回错误信息
+        if not settings.OSS_ENABLED or not OSS_AVAILABLE:
+            return {
+                "success": False,
+                "message": "OSS功能未启用或不可用",
+                "count": 0,
+                "error_count": 0,
+            }
+
         try:
             # 初始化OSS客户端
             auth = oss2.Auth(settings.OSS_ACCESS_KEY_ID, settings.OSS_ACCESS_KEY_SECRET)

@@ -27,16 +27,6 @@ export default {
         create: (data = {}) => request.post('/role/create', data),
         update: (data = {}) => request.post('/role/update', data),
         delete: (data) => request.delete('/role/delete', { params: data }),
-        getPermissions: (roleId) => request.get('/role/permissions', { params: { role_id: roleId } }),
-        updatePermissions: (data = {}) => request.post('/role/permissions', data),
-    },
-
-    // 菜单管理
-    menus: {
-        getList: (params = {}) => request.get('/menu/list', { params }),
-        create: (data = {}) => request.post('/menu/create', data),
-        update: (data = {}) => request.post('/menu/update', data),
-        delete: (data) => request.delete('/menu/delete', { params: data }),
     },
 
     // API管理

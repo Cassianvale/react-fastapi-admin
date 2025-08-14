@@ -5,20 +5,10 @@ import {
   MenuUnfoldOutlined,
   DashboardOutlined,
   UserOutlined,
-  TeamOutlined,
-  SettingOutlined,
-  LogoutOutlined,
-  ApartmentOutlined,
-  ApiOutlined,
-  FileTextOutlined,
-  CloudUploadOutlined,
-  CloseOutlined,
-  MenuOutlined,
-  AppstoreOutlined,
+  LogoutOutlined
 } from '@ant-design/icons'
 import { Icon } from '@iconify/react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import api from '@/api'
 
 const { Header, Sider, Content } = Layout
 
@@ -40,76 +30,49 @@ const AppLayout = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken()
 
-  // 获取用户菜单
-  const fetchUserMenu = async () => {
-    try {
-      const response = await api.auth.getUserMenu()
-      const menuData = response.data || []
-      
-      // 转换菜单数据格式
-      const convertedMenus = convertMenuData(menuData)
-      
-      // 添加工作台菜单（固定在第一位）
-      const allMenus = [
-        {
-          key: '/dashboard',
-          icon: <DashboardOutlined />,
-          label: '工作台',
-        },
-        ...convertedMenus
-      ]
-      
-      setMenuItems(allMenus)
-    } catch (error) {
-      console.error('获取用户菜单失败:', error)
-      // 如果获取失败，使用默认的工作台菜单
-      setMenuItems([
-        {
-          key: '/dashboard',
-          icon: <DashboardOutlined />,
-          label: '工作台',
-        }
-      ])
-    }
-  }
-
-  // 转换后端菜单数据为Ant Design Menu格式
-  const convertMenuData = (menuData, parentPath = '') => {
-    return menuData.map(menu => {
-      // 构建完整路径
-      const fullPath = parentPath ? `${parentPath}/${menu.path}` : menu.path
-      
-      const convertedMenu = {
-        key: fullPath,
-        label: menu.name,
-        icon: menu.icon ? (
-          <Icon icon={menu.icon} width="16" height="16" />
-        ) : (
-          getDefaultIcon(menu.menu_type)
-        )
+  // 初始化静态菜单
+  const initializeStaticMenu = () => {
+    const staticMenus = [
+      {
+        key: '/dashboard',
+        icon: <DashboardOutlined />,
+        label: '工作台',
+      },
+      {
+        key: '/system',
+        icon: <Icon icon="carbon:gui-management" width="16" height="16" />,
+        label: '系统管理',
+        children: [
+          {
+            key: '/system/users',
+            icon: <Icon icon="ph:user-list-bold" width="16" height="16" />,
+            label: '用户管理',
+          },
+          {
+            key: '/system/roles',
+            icon: <Icon icon="carbon:user-role" width="16" height="16" />,
+            label: '角色管理',
+          },
+          {
+            key: '/system/apis',
+            icon: <Icon icon="ant-design:api-outlined" width="16" height="16" />,
+            label: 'API管理',
+          },
+          {
+            key: '/system/departments',
+            icon: <Icon icon="mingcute:department-line" width="16" height="16" />,
+            label: '部门管理',
+          },
+          {
+            key: '/system/audit',
+            icon: <Icon icon="ph:clipboard-text-bold" width="16" height="16" />,
+            label: '审计日志',
+          },
+        ]
       }
+    ]
 
-      // 如果有子菜单，递归转换
-      if (menu.children && menu.children.length > 0) {
-        convertedMenu.children = convertMenuData(menu.children, fullPath)
-      }
-
-      return convertedMenu
-    })
-  }
-
-  // 获取默认图标
-  const getDefaultIcon = (menuType) => {
-    switch (menuType) {
-      case 'catalog':
-        return <SettingOutlined />
-      case 'menu':
-        return <MenuOutlined />
-      case 'button':
-        return <AppstoreOutlined />
-      default:
-        return <MenuOutlined />
-    }
+    setMenuItems(staticMenus)
   }
 
   // 动态生成面包屑映射
@@ -166,8 +129,8 @@ const AppLayout = () => {
 
   // 初始化菜单和用户信息
   useEffect(() => {
-    // 获取用户菜单
-    fetchUserMenu()
+    // 初始化静态菜单
+    initializeStaticMenu()
     
     // 获取用户信息
     const storedUserInfo = localStorage.getItem('userInfo')
@@ -218,12 +181,11 @@ const AppLayout = () => {
   // 将更新函数暴露给全局，方便其他组件调用
   useEffect(() => {
     window.updateUserInfo = updateUserInfo
-    window.refreshUserMenu = fetchUserMenu // 暴露菜单刷新函数
+    // 移除菜单刷新函数，因为现在使用静态菜单
     return () => {
       delete window.updateUserInfo
-      delete window.refreshUserMenu
     }
-  }, [updateUserInfo, fetchUserMenu])
+  }, [updateUserInfo])
 
   // 登出功能
   const handleLogout = () => {

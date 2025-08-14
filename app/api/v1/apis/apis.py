@@ -71,7 +71,7 @@ async def delete_api(
 
     # 删除API
     await api_controller.remove(id=api_id)
-    return Success(msg="删除成功，已同步删除对应权限")
+    return Success(msg="删除成功")
 
 
 @router.post("/refresh", summary="刷新API列表")
