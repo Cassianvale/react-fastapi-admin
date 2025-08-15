@@ -25,13 +25,8 @@ class Role(BaseModel, TimestampMixin):
     name = fields.CharField(max_length=20, unique=True, description="角色名称", index=True)
     desc = fields.CharField(max_length=500, null=True, description="角色描述")
 
-
-
     class Meta:
         table = "role"
-
-
-
 
 
 class Api(BaseModel, TimestampMixin):
@@ -42,9 +37,6 @@ class Api(BaseModel, TimestampMixin):
 
     class Meta:
         table = "api"
-
-
-
 
 
 class Dept(BaseModel, TimestampMixin):
